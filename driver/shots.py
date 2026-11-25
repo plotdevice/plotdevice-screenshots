@@ -573,7 +573,7 @@ def describe_menu(menu, depth=0):
         if it.isSeparatorItem():
             continue
         action = it.action()
-        entry = dict(title=str(it.title()), id=str(it.identifier()) if it.identifier() else None,
+        entry = dict(title=str(it.title()), id=str(it.identifier()) if it.identifier() else None, tag=int(it.tag()),
                      action=(action.decode() if isinstance(action, bytes) else str(action)) if action else None)
         if it.isHidden():
             entry['hidden'] = True

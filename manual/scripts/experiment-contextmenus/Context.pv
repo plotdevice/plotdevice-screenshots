@@ -1,0 +1,4 @@
+size(400, 300)
+var("name", TEXT, "John Doe")
+print("some output to right-click on")
+text("Hello, %s" % name, 20, 60)

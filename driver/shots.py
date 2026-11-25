@@ -20,6 +20,7 @@ Shot keys:
             menu are grabbed apart from the window and composited onto it by matte.py)
   pdf       true to also save what Edit > Copy Image As PDF provides (to pdf/<name>.pdf)
   probe_menu  {bar: title, remove: title fragment}: an experiment that logs the menu's items rather than grabbing
+  probe_context  true for an experiment that logs the context menus of the window's views rather than grabbing
   outline   true to also grab it without shadows, so matte.py --outline can keep just its edge
   panel     include the variables panel: {gap: points between the window's bottom edge & the panel's
             top (with their right edges aligned), click: a BUTTON variable to press first,
@@ -483,6 +484,13 @@ def shoot(shot, appearance, scr, found):
             on_main(ctrl.stopScript)
             info['stopped_at'] = ctrl.vm._meta.frame
         settle(shot.get('settle', 3))
+    if shot.get('probe_context'):
+        # an experiment: right-click each part of the window and log the context menus (before the editor is frozen)
+        info['context_menus'] = probe_context(ctrl, win, found)
+        log('probed', name, json.dumps(info['context_menus']))
+        results.append(dict(name=name, ok=True, **info))
+        close_all()
+        return
     if shot.get('editor'):
         info['editor'] = editor_state(ctrl, shot['editor'])
     else:
@@ -557,6 +565,92 @@ def shoot(shot, appearance, scr, found):
     else:
         capture(shot, name, win, scr, found, info, ctrl, extra, key=key)
     close_all()
+
+def describe_menu(menu, depth=0):
+    """A menu's items (and their submenus') as plain data"""
+    items = []
+    for it in menu.itemArray():
+        if it.isSeparatorItem():
+            continue
+        action = it.action()
+        entry = dict(title=str(it.title()), id=str(it.identifier()) if it.identifier() else None,
+                     action=(action.decode() if isinstance(action, bytes) else str(action)) if action else None)
+        if it.isHidden():
+            entry['hidden'] = True
+        if it.hasSubmenu() and depth < 2:
+            entry['submenu'] = describe_menu(it.submenu(), depth + 1)
+        items.append(entry)
+    return items
+
+def probe_context(ctrl, win, found):
+    """Right-click the editor, canvas, output pane & a variables field, recording each context menu as it opens"""
+    import Quartz as Q
+    from AppKit import NSNotificationCenter
+    seen = []
+    def began(note):
+        seen.append(describe_menu(note.object()))
+    observer = on_main(lambda: NSNotificationCenter.defaultCenter().addObserverForName_object_queue_usingBlock_(
+        'NSMenuDidBeginTrackingNotification', None, None, began))
+    H = found[0]['frame'][3]
+
+    def center(view):
+        def finding():
+            r = view.window().convertRectToScreen_(view.convertRect_toView_(view.visibleRect(), None))
+            return (r.origin.x + r.size.width / 2, H - (r.origin.y + r.size.height / 2))
+        return on_main(finding)
+
+    def click(pt, right=True):
+        down, up = (Q.kCGEventRightMouseDown, Q.kCGEventRightMouseUp) if right else (Q.kCGEventLeftMouseDown, Q.kCGEventLeftMouseUp)
+        button = Q.kCGMouseButtonRight if right else Q.kCGMouseButtonLeft
+        Q.CGWarpMouseCursorPosition(pt)
+        for kind in (down, up):
+            Q.CGEventPost(Q.kCGHIDEventTap, Q.CGEventCreateMouseEvent(None, kind, pt, button))
+            time.sleep(0.05)
+
+    def context(label, view, before=None):
+        if view is None:
+            return dict(view=label, menus='no such view')
+        on_main(lambda: win.makeKeyAndOrderFront_(None))
+        settle(0.5)
+        if before:
+            before()
+            settle(0.5)
+        del seen[:]
+        click(center(view))
+        settle(1.5)
+        for down in (True, False):
+            Q.CGEventPost(Q.kCGHIDEventTap, Q.CGEventCreateKeyboardEvent(None, 53, down)) # escape
+        settle(1)
+        return dict(view=label, menus=list(seen))
+
+    out = []
+    webview = ctrl.editorView.webview if ctrl.editorView else None
+    out.append(context('editor', webview))
+    out.append(context('editor with a selection', webview, lambda: js(ctrl, "ace.edit('editor').selectAll(); ace.edit('editor').focus()")))
+    out.append(context('canvas', ctrl.graphicsView))
+    output = ctrl.outputView
+    out.append(context('output', output))
+    out.append(context('output with a selection', output, lambda: on_main(lambda: (win.makeFirstResponder_(output), output.selectAll_(None)))))
+
+    # a TEXT variable's field in the variables panel, focused first
+    dash = ctrl.dashboardController
+    from plotdevice.context import TEXT
+    rows = on_main(lambda: [r for r in dash.rows.values() if r.type is TEXT] if dash else [])
+    field = rows[0].control if rows else None
+    if field is not None:
+        on_main(lambda: dash.panel.makeKeyAndOrderFront_(None))
+        settle(0.5)
+        click(center(field), right=False)
+        settle(0.5)
+        del seen[:]
+        click(center(field))
+        settle(1.5)
+        for down in (True, False):
+            Q.CGEventPost(Q.kCGHIDEventTap, Q.CGEventCreateKeyboardEvent(None, 53, down))
+        settle(1)
+        out.append(dict(view='variables text field', menus=list(seen)))
+    on_main(lambda: NSNotificationCenter.defaultCenter().removeObserver_(observer))
+    return out
 
 def probe_menu(probe):
     """List a menu bar menu's items before and after it's first opened, then see whether removing one sticks"""

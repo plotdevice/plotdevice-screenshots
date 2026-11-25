@@ -488,5 +488,17 @@
    "remove": "AutoFill"
   },
   "install": []
+ },
+ {
+  "name": "experiment-contextmenus",
+  "script": "experiment-contextmenus/Context.pv",
+  "content": [
+   640,
+   400
+  ],
+  "split": 300,
+  "output": 280,
+  "probe_context": true,
+  "install": []
  }
 ]

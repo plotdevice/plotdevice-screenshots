@@ -1,4 +1,4 @@
-var("typeface", TEXT, "Arial Bold")
+var("typeface", TEXT, "Arial")
 var("text", TEXT, "Knitted")
 var("size", NUMBER, 125, 10, 200)
 var("stitches", NUMBER, 500, 10, 1000)
@@ -51,5 +51,5 @@ nofill()
 stroke(0.2)
 strokewidth(1)
 
-font(typeface, size)
+font(typeface, "bold", size)
 stitch(text, 50, 150, n=stitches)

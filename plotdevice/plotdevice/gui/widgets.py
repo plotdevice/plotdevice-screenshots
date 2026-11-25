@@ -254,7 +254,7 @@ class DashboardController(NSObject):
 
     def awakeFromNib(self):
         self.panel.contentView().setFlipped_(True)
-        self.panel.contentView().setMaterial_(NSVisualEffectMaterialHUDWindow)
+        self.panel.contentView().setMaterial_(NSVisualEffectMaterialPopover)
         self.rows = OrderedDict()
         self.positioned = False
         self.editing = False # edits are arriving in a burst
@@ -304,18 +304,21 @@ class DashboardController(NSObject):
     def updateInterface(self):
         params = self.script.vm.params
         for name, widget in self.rows.items():
-            if name not in params:
+            # drop rows for removed vars and for vars whose type changed (their controls can't be reconfigured)
+            if name not in params or params[name].type is not widget.type:
                 widget.removeFromSuperview()
-                self.script.vm.namespace.pop(name)
+                if widget.type is TEXT:
+                    widget.control.setDelegate_(None)
 
         new_rows = OrderedDict()
         for name, var in params.items():
-            try:
-                new_rows[name] = self.rows[name]
-                new_rows[name].updateConfig(var)
-            except KeyError:
-                new_rows[name] = DashboardRow.alloc().initWithVariable_forDelegate_(var, self)
-                self.panel.contentView().addSubview_(new_rows[name])
+            row = self.rows.get(name)
+            if row is not None and row.type is var.type:
+                row.updateConfig(var)
+            else:
+                row = DashboardRow.alloc().initWithVariable_forDelegate_(var, self)
+                self.panel.contentView().addSubview_(row)
+            new_rows[name] = row
         self.rows = new_rows
 
         if not self.rows:
@@ -329,12 +332,14 @@ class DashboardController(NSObject):
             label_w = max([v.label_w for v in self.rows.values()])
             button_w = max([v.button_w for v in self.rows.values()])
             num_w = max([v.num_w for v in self.rows.values()])
-            ph = len(self.rows) * 30 + 30
+            ch = len(self.rows) * 30 + 15 # 10pt below a button, which hangs 5pt below its row
             pw = label_w + 15 + max(button_w, 200) + num_w
             col = label_w + 15
 
-            self.panel.setMinSize_( (pw, ph))
-            self.panel.setMaxSize_( (pw * 5, ph))
+            # size the content rather than the frame so the title bar's height doesn't eat the margin
+            self.panel.setContentMinSize_( (pw, ch))
+            self.panel.setContentMaxSize_( (pw * 5, ch))
+            ph = self.panel.frameRectForContentRect_(((0, 0), (pw, ch))).size.height
 
             needs_resize = pSize.width < pw or pSize.height != ph
             pw = max(pw, pSize.width)

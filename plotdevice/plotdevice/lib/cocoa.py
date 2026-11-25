@@ -75,7 +75,7 @@ from AppKit import NSAlert, NSAlternateKeyMask, NSApp, NSAppearance, NSAppearanc
                    NSTrackingActiveInActiveApp, NSTrackingActiveInKeyWindow, NSTrackingArea, \
                    NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSUnboldFontMask, NSUnionRect, \
                    NSUnitalicFontMask, NSView, NSViewBoundsDidChangeNotification, NSViewFrameDidChangeNotification, \
-                   NSViewMinXMargin, NSViewWidthSizable, NSVisualEffectMaterialHUDWindow, \
+                   NSViewMinXMargin, NSViewWidthSizable, NSVisualEffectMaterialPopover, \
                    NSVisualEffectMaterialTitlebar, NSVisualEffectMaterialUnderWindowBackground, NSVisualEffectView, \
                    NSWindow, NSWindowBackingLocationVideoMemory, NSWindowController, \
                    NSWindowStyleMaskFullSizeContentView, NSWindowTabbingModeAutomatic, NSWindowTabbingModePreferred, \

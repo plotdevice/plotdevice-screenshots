@@ -204,6 +204,12 @@ class Sandbox(object):
         # Reset the context state (and bind the .gfx objects as a side-effect)
         self.context._resetContext()
 
+        # give setup() & draw() the variables' current values (the module-level pass gets them from var())
+        if method is not None:
+            for name, p in self.params.items():
+                if p.type is not context.BUTTON: # buttons don't actually create variables
+                    self.namespace[name] = p.value
+
         # Set the frame/pagenum
         self.namespace['PAGENUM'] = self.namespace['FRAME'] = self._meta.frame
 

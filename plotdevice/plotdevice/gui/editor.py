@@ -3,6 +3,7 @@ import os
 import re
 import json
 import objc
+import traceback
 from objc import super
 from time import time
 from ..lib.cocoa import *
@@ -242,7 +243,11 @@ class EditorView(NSView):
         def done(value, error):
             if value is not None:
                 self._last_source = value
-            callback(self._last_source)
+            # an exception escaping a webkit completion handler aborts the app, so report it instead
+            try:
+                callback(self._last_source)
+            except Exception:
+                traceback.print_exc()
         self.webview.evaluateJavaScript_completionHandler_('editor.source();', done)
 
     def fontChanged(self, note=None):

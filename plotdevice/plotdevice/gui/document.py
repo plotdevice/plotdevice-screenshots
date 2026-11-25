@@ -523,9 +523,10 @@ class ScriptController(NSWindowController):
         self.vm.source = source
         success = self.invoke(None)
 
-        # Display the dashboard if the var() command was called
-        self.vm.params = self.vm.vars
-        self.dashboardController.updateInterface()
+        # Display the dashboard if the var() command was called (a failed run leaves it as it was)
+        if success:
+            self.vm.params = self.vm.vars
+            self.dashboardController.updateInterface()
 
         # Run the setup routine (if it exists)
         if success:

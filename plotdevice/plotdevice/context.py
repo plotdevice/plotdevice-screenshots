@@ -107,11 +107,6 @@ class Context(object):
         # (this is reset with every invocation but only checked after the full-module eval)
         self._vars = OrderedDict()
 
-        # update existing variables' values from _params (so draw() can see updates)
-        for name, p in self._params.items():
-            if p.type != BUTTON: # buttons don't actually create variables
-                self._ns[name] = p.value
-
         # legacy internals
         self._transformstack = [] # only used by push/pop
 

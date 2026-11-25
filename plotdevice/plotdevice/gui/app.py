@@ -40,11 +40,12 @@ class PlotDeviceAppDelegate(NSObject):
     def applicationDidFinishLaunching_(self, note):
         mm=NSApp().mainMenu()
 
-        # disable the start-dictation item in the edit menu
+        # disable the start-dictation and autofill items in the edit menu
         edmenu = mm.itemAtIndex_(2).submenu()
         for it in edmenu.itemArray():
-            action = it.action()
-            if action in (NSSelectorFromString("startDictation:"), ):
+            dictation = it.action() == NSSelectorFromString("startDictation:")
+            autofill = it.identifier() == "_NSMenuItemAutoFillIdentifier"
+            if dictation or autofill:
                 edmenu.removeItem_(it)
 
         # add a hidden item to the menus that can be triggered internally by the editor

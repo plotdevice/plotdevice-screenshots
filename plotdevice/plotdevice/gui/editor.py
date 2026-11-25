@@ -53,11 +53,23 @@ class DraggyWebView(WKWebView):
         return False
 
     def willOpenMenu_withEvent_(self, menu, event):
+        self._trim_menu(menu, event)
+
+    def menuDidBeginTracking_(self, note):
+        # current webkit shows its context menu without calling willOpenMenu:withEvent:, so trim it as it opens
+        menu, event = note.object(), NSApp().currentEvent()
+        ours = any(str(item.identifier() or '').startswith('WKMenuItemIdentifier') for item in menu.itemArray())
+        if ours and event is not None and event.window() == self.window():
+            self._trim_menu(menu, event)
+
+    @objc.python_method
+    def _trim_menu(self, menu, event):
         # omit everything from context menu except Cut/Copy/Paste (+ Inspect Element)
         keep = ('WKMenuItemIdentifierCut', 'WKMenuItemIdentifierCopy',
                 'WKMenuItemIdentifierPaste', 'WKMenuItemIdentifierInspectElement')
         for item in list(menu.itemArray()):
-            if item.identifier() not in keep:
+            cut = item.tag() == 13 # webkit's tag for Cut (whose identifier isn't reliable)
+            if item.identifier() not in keep and not cut:
                 menu.removeItem_(item)
 
         # read _doc_target to get the tokens currently targeted by the mouse and caret
@@ -125,6 +137,7 @@ class EditorView(NSView):
         nc.addObserver_selector_name_object_(self, "bindingsChanged", "BindingsChanged", None)
         nc.addObserver_selector_name_object_(self, "scrollerStyleChanged", NSPreferredScrollerStyleDidChangeNotification, None)
         nc.addObserver_selector_name_object_(self, "insertDroppedFiles:", "DropOperation", self.webview)
+        nc.addObserver_selector_name_object_(self.webview, "menuDidBeginTracking:", NSMenuDidBeginTrackingNotification, None)
         self._edits = 0
         self._last_source = ''
         self._refresh()
@@ -171,6 +184,7 @@ class EditorView(NSView):
         self.webview.setNavigationDelegate_(None)
         nc = NSNotificationCenter.defaultCenter()
         nc.removeObserver_(self)
+        nc.removeObserver_(self.webview)
         self._doers = self._undo_mgr = self.jumpPanel = self.jumpLine = None
 
     def webView_didFinishNavigation_(self, sender, nav):

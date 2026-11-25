@@ -331,16 +331,12 @@ class ScriptController(NSWindowController):
 
     def windowWillUseStandardFrame_defaultFrame_(self, win, rect):
         scroll = self.graphicsView.enclosingScrollView()
-        container = scroll.superview() # nssplitview or nsview
         frame = win.frame()
         current = frame.size
-        gworld = self.graphicsView.frame().size
+        gworld = NSSize(*(self.graphicsView.canvasSize or self.graphicsView.frame().size))
         scrollview = scroll.frame().size
-        thumb_w = 1 if type(container) is NSSplitView else 0 # no thumb when running from command line
-
-        gfx_share = scrollview.width / (current.width-thumb_w)
-        best_w = round(gworld.width/gfx_share) + thumb_w
-        best_h = gworld.height + 38
+        best_w = gworld.width + current.width - scrollview.width
+        best_h = gworld.height + current.height - scrollview.height
         merged = NSIntersectionRect(rect, (rect.origin, (best_w, best_h)))
 
         if merged.size.width<300 or merged.size.height<222:

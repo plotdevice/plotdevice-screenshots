@@ -75,7 +75,18 @@
   "menu": {
    "bar": "Edit",
    "item": "Copy Image As PDF"
-  }
+  },
+  "pdf": true,
+  "install": [
+   {
+    "to": "src/etc/tut/environment-copy-as-pdf.png",
+    "tag": true
+   },
+   {
+    "from": "pdf",
+    "to": "art/environment-clipboard.pdf"
+   }
+  ]
  },
  {
   "name": "environment-export",

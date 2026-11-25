@@ -16,7 +16,9 @@ Shot keys:
   assets    {destination: path within manual/} files to put in place before running
   editor    {top: first visible line, cursor: [line, col], select: [[l1, c1], [l2, c2]]}
   sheet     {kind: image|movie, settings: {...}, where: folder} to open an export sheet
-  menu      {bar: title, item: title} to open a menu bar menu and highlight an item
+  menu      {bar: title, item: title} to open a menu bar menu and highlight an item (the menu bar &
+            menu are grabbed apart from the window and composited onto it by matte.py)
+  pdf       true to also save what Edit > Copy Image As PDF provides (to pdf/<name>.pdf)
   outline   true to also grab it without shadows, so matte.py --outline can keep just its edge
   panel     include the variables panel: {gap: points between the window's bottom edge & the panel's
             top (with their right edges aligned), click: a BUTTON variable to press first,
@@ -417,16 +419,13 @@ def set_shadows(win, on):
     return changed
 
 def region_for(win, scr, shot, extra=()):
-    """The window's frame padded for its shadow, grown to cover any panels and (for menus) the menu bar"""
+    """The window's frame padded for its shadow, grown to cover any sheets and panels"""
     f = on_main(win.frame)
     x0, y0 = f.origin.x - MARGIN, f.origin.y - MARGIN
     x1, y1 = f.origin.x + f.size.width + MARGIN, f.origin.y + f.size.height + MARGIN
     for e in extra:
         x0, y0 = min(x0, e[0] - MARGIN), min(y0, e[1] - MARGIN)
         x1, y1 = max(x1, e[0] + e[2] + MARGIN), max(y1, e[1] + e[3] + MARGIN)
-    if shot.get('menu'):
-        x0 = scr['frame'][0] # out to the apple menu
-        y1 = scr['frame'][1] + scr['frame'][3] # and up to the top of the screen
     return [x0, y0, x1 - x0, y1 - y0]
 
 def style_panel(dash, panel, style):
@@ -543,8 +542,87 @@ def shoot(shot, appearance, scr, found):
             extra.append(on_main(placing))
             settle(1)
             key = panel # so its controls draw active rather than greyed out
-    capture(shot, name, win, scr, found, info, ctrl, extra, key=key)
+    if shot.get('pdf'):
+        info['pdf'] = save_pdf(ctrl, name)
+    if shot.get('menu'):
+        capture_menu(shot, name, win, scr, found, info, ctrl)
+    else:
+        capture(shot, name, win, scr, found, info, ctrl, extra, key=key)
     close_all()
+
+def save_pdf(ctrl, name):
+    """Save the PDF that Edit > Copy Image As PDF puts on the pasteboard"""
+    from AppKit import NSPasteboard, NSPasteboardTypePDF
+    def copying():
+        ctrl.copyImageAsPDF_(None)
+        return NSPasteboard.generalPasteboard().dataForType_(NSPasteboardTypePDF) # provided lazily, by the view
+    data = on_main(copying)
+    if data is None:
+        return 'nothing on the pasteboard'
+    os.makedirs(os.path.join(OUT, 'pdf'), exist_ok=True)
+    path = os.path.join(OUT, 'pdf', name + '.pdf')
+    data.writeToFile_atomically_(path, True)
+    return os.path.getsize(path)
+
+def menu_windows():
+    """The frames (in screencapture's top-left coordinates) of the app's open menus"""
+    import Quartz as Q
+    out = []
+    for w in Q.CGWindowListCopyWindowInfo(Q.kCGWindowListOptionOnScreenOnly, Q.kCGNullWindowID) or []:
+        if w.get('kCGWindowOwnerPID') == os.getpid() and w.get('kCGWindowLayer', 0) >= 101:
+            b = w['kCGWindowBounds']
+            out.append([b['X'], b['Y'], b['Width'], b['Height']])
+    return out
+
+def capture_menu(shot, name, win, scr, found, info, ctrl):
+    """Grab the window and the menu bar (with its open menu) separately, for matte.py to composite.
+
+    A window flush with the screen's left edge loses its shadow there, so instead the window is grabbed
+    on its own (with its shadow), then moved aside while the menu bar and menu are grabbed from the
+    screen's edge. matte.py lines the menu bar's left end up with the window's left edge.
+    """
+    from AppKit import NSColor, NSScreen
+    plain = {k: v for k, v in shot.items() if k != 'menu'}
+    capture(plain, name, win, scr, found, info, ctrl)
+
+    # move the window clear of the menu (it stays key, so the menu's items stay enabled)
+    f = on_main(win.frame)
+    sx, sy, sw, sh = scr['frame']
+    on_main(lambda: win.setFrameOrigin_((sx + sw - f.size.width - 20, sy + 20)))
+    on_main(lambda: win.makeKeyAndOrderFront_(None))
+    settle(1)
+
+    # measure the open menu, then size the region from the screen's top-left corner to cover it & the window's width
+    click = open_menu(shot['menu'])
+    menus = menu_windows()
+    close_menu(click)
+    H = found[0]['frame'][3]
+    top = H - (sy + sh)
+    right = max([m[0] + m[2] for m in menus] + [sx + f.size.width]) + MARGIN
+    bottom = max([m[1] + m[3] for m in menus] + [top + 40]) + MARGIN
+    pad = [sx, sy + sh - (bottom - top), right - sx, bottom - top]
+    rect = global_rect(found, pad, 0)
+    bg = backdrop(pad, 'white')
+    ok = True
+    for color in ('white', 'black'):
+        on_main(lambda: bg.setBackgroundColor_(getattr(NSColor, color + 'Color')()))
+        on_main(lambda: win.makeKeyAndOrderFront_(None))
+        settle(1)
+        click = open_menu(shot['menu'])
+        ok = grab(os.path.join(OUT, 'raw', '%s~menu@%s.png' % (name, color)), rect) and ok
+        close_menu(click)
+    on_main(bg.close)
+
+    # how matte.py should put the two together (in points; it scales by the screen's backing factor)
+    def bar():
+        screen = next(s for s in NSScreen.screens() if int(s.deviceDescription()['NSScreenNumber']) == scr['id'])
+        v = screen.visibleFrame()
+        return (sy + sh) - (v.origin.y + v.size.height)
+    geometry = dict(scale=scr['scale'], margin=MARGIN, menubar=on_main(bar), window=[f.size.width, f.size.height], layer=name + '~menu')
+    with open(os.path.join(OUT, 'raw', name + '.composite.json'), 'w') as fp:
+        json.dump(geometry, fp)
+    info['menu'] = dict(geometry, menus=menus, ok=ok)
+    log('captured menu layer' if ok else 'FAILED menu layer', name)
 
 def capture(shot, name, win, scr, found, info, ctrl=None, extra=(), key=None):
     """Grab the window (with any sheet, menu, or panel) over white & black backdrops, with and without shadows"""

@@ -19,6 +19,7 @@ Shot keys:
   menu      {bar: title, item: title} to open a menu bar menu and highlight an item (the menu bar &
             menu are grabbed apart from the window and composited onto it by matte.py)
   pdf       true to also save what Edit > Copy Image As PDF provides (to pdf/<name>.pdf)
+  probe_menu  {bar: title, remove: title fragment}: an experiment that logs the menu's items rather than grabbing
   outline   true to also grab it without shadows, so matte.py --outline can keep just its edge
   panel     include the variables panel: {gap: points between the window's bottom edge & the panel's
             top (with their right edges aligned), click: a BUTTON variable to press first,
@@ -542,6 +543,13 @@ def shoot(shot, appearance, scr, found):
             extra.append(on_main(placing))
             settle(1)
             key = panel # so its controls draw active rather than greyed out
+    if shot.get('probe_menu'):
+        # an experiment: log a menu's items (and whether removing one sticks) instead of grabbing anything
+        info['menu_probe'] = probe_menu(shot['probe_menu'])
+        log('probed', name, json.dumps(info['menu_probe']))
+        results.append(dict(name=name, ok=True, **info))
+        close_all()
+        return
     if shot.get('pdf'):
         info['pdf'] = save_pdf(ctrl, name)
     if shot.get('menu'):
@@ -549,6 +557,39 @@ def shoot(shot, appearance, scr, found):
     else:
         capture(shot, name, win, scr, found, info, ctrl, extra, key=key)
     close_all()
+
+def probe_menu(probe):
+    """List a menu bar menu's items before and after it's first opened, then see whether removing one sticks"""
+    from AppKit import NSApp
+    bar = probe['bar']
+    def listing():
+        menu = NSApp().mainMenu().itemWithTitle_(bar).submenu()
+        items = []
+        for it in menu.itemArray():
+            action = it.action()
+            items.append(dict(title=str(it.title()), action=(action.decode() if isinstance(action, bytes) else str(action)) if action else None,
+                              identifier=str(it.identifier()) if it.identifier() else None, hidden=bool(it.isHidden()),
+                              separator=bool(it.isSeparatorItem()), submenu=bool(it.hasSubmenu()), cls=str(it.className())))
+        return items
+    def opening():
+        click = open_menu(dict(bar=bar))
+        close_menu(click)
+    out = dict(launch=on_main(listing))
+    opening()
+    out['opened'] = on_main(listing)
+    def removing():
+        menu = NSApp().mainMenu().itemWithTitle_(bar).submenu()
+        gone = [str(it.title()) for it in list(menu.itemArray()) if probe['remove'].lower() in str(it.title()).lower()]
+        for it in list(menu.itemArray()):
+            if probe['remove'].lower() in str(it.title()).lower():
+                menu.removeItem_(it)
+        return gone
+    out['removed'] = on_main(removing)
+    opening()
+    out['reopened'] = on_main(listing)
+    opening()
+    out['reopened_again'] = on_main(listing)
+    return out
 
 def save_pdf(ctrl, name):
     """Save the PDF that Edit > Copy Image As PDF puts on the pasteboard"""

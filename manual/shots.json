@@ -473,5 +473,20 @@
     "appearance": null
    }
   }
+ },
+ {
+  "name": "experiment-autofill",
+  "script": "environment1/Balls.pv",
+  "content": [
+   550,
+   390
+  ],
+  "split": 258,
+  "output": 287,
+  "probe_menu": {
+   "bar": "Edit",
+   "remove": "AutoFill"
+  },
+  "install": []
  }
 ]

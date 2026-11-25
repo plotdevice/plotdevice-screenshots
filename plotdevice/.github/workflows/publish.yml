@@ -1,0 +1,40 @@
+name: Publish to PyPI
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    name: Publish to PyPI
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install build dependencies
+      run: pip3 install -U pip wheel twine build setuptools
+
+    - name: Install PlotDevice and run tests
+      run: |
+        pip3 install .
+        python3 -m tests
+
+    - name: Build Wheels
+      uses: pypa/cibuildwheel@v4
+      with:
+        output-dir: dist
+
+    - name: Build Source Distribution
+      run: |
+        python3 -m build --sdist
+
+    - name: Upload to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        TWINE_NON_INTERACTIVE: 1
+      run: |
+        twine check dist/*
+        twine upload dist/*

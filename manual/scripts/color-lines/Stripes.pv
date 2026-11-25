@@ -1,0 +1,7 @@
+pen(2)
+for i in range(HEIGHT):
+    c = color(random(), random(), random())
+    c.saturation = 1.0
+    stroke(c)
+    line(0, i, WIDTH, i)
+    

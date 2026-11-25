@@ -1,0 +1,11 @@
+# draw the background image
+image("~/glass-arcade.jpg")
+
+# add a headline
+with font("Baskerville", italic=True):
+    text("Sarah Records", 70, 70)
+
+# add the body text (from our text file)
+wikipedia = read("~/sarah-records.txt")
+with font("gill sans", 13):
+    text(wikipedia, 70, 180, width=240)

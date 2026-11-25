@@ -1,0 +1,98 @@
+name: manual
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: comma-separated shot names (blank for all)
+        required: false
+        default: ''
+      diagnose:
+        description: record the editor webview's state & webkit's log
+        type: boolean
+        default: false
+
+jobs:
+  # the release build: make.py app against the macos 15 sdk
+  build:
+    name: build with the macos 15 sdk
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: PlotDevice.zip
+          key: app-macos-15-${{ hashFiles('plotdevice/**') }}
+
+      - name: build PlotDevice.app
+        if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: plotdevice
+        run: |
+          git init -q && git add -A && git -c user.name=ci -c user.email=ci@localhost commit -qm snapshot # make.py counts commits
+          python3 -u make.py app
+          ditto -c -k --keepParent dist/PlotDevice.app ../PlotDevice.zip
+
+  shoot:
+    name: manual screenshots on macos 27
+    needs: build
+    runs-on: xcode-27
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: PlotDevice.zip
+          key: app-macos-15-${{ hashFiles('plotdevice/**') }}
+          fail-on-cache-miss: true
+
+      - name: take screenshots
+        run: |
+          sw_vers
+          ditto -x -k PlotDevice.zip "$RUNNER_TEMP/app"
+          APP="$RUNNER_TEMP/app/PlotDevice.app"
+          OUT="$PWD/shots"
+          mkdir -p "$OUT"
+          vtool -show-build "$APP/Contents/MacOS/PlotDevice" > "$OUT/sdk.txt"
+          cp SNAPSHOT "$OUT/" 2>/dev/null || true
+          export PD_SHOTS_DIR="$OUT" PD_SHOTS_EXAMPLES="$PWD/plotdevice/examples" PYTHONPATH="$PWD/driver"
+          export PD_SHOTS_ONLY="${{ github.event.inputs.only }}"
+          [[ "${{ github.event.inputs.diagnose }}" == true ]] && export PD_SHOTS_DIAGNOSE=1
+          "$APP/Contents/MacOS/PlotDevice" -ApplePersistenceIgnoreState YES -AppleShowScrollBars WhenScrolling 2>&1 | tee "$OUT/log.txt"
+
+          # viewer windows come from the command line tool, one process per script, with the same
+          # overlay scrollers the app gets from its -AppleShowScrollBars flag
+          defaults write -g AppleShowScrollBars WhenScrolling
+          CLI="$APP/Contents/Frameworks/Python.framework/Versions/Current/bin/plotdevice"
+          python3 -c 'import json; [print(s["name"], s["viewer"]) for s in json.load(open("manual/shots.json")) if s.get("viewer")]' |
+          while read -r name script; do
+            if [[ -n "$PD_SHOTS_ONLY" && ",$PD_SHOTS_ONLY," != *",$name,"* ]]; then continue; fi
+            PD_SHOTS_MODE=viewer PD_SHOTS_VIEWER="$name" "$CLI" "manual/scripts/$script" 2>&1 | tee "$OUT/viewer-$name.txt"
+          done
+
+      - name: save webkit's log
+        if: always() && github.event.inputs.diagnose == 'true'
+        run: |
+          log show --last 30m --style compact --predicate 'subsystem BEGINSWITH "com.apple.WebKit" OR process BEGINSWITH "com.apple.WebKit"' \
+            > shots/webkit.txt 2>&1 || true
+          grep -iE "crash|terminat|fail|error|denied|sandbox" shots/webkit.txt | tail -60 || true
+
+      - name: matte
+        run: |
+          python3 -m venv "$RUNNER_TEMP/matte"
+          "$RUNNER_TEMP/matte/bin/pip" install -q pillow numpy scipy
+          M="$RUNNER_TEMP/matte/bin/python"
+          $M -u driver/matte.py shots/raw shots/png
+          if [[ -d shots/raw-flat ]] && ls shots/raw-flat/*.png >/dev/null 2>&1; then
+            $M -u driver/matte.py shots/raw-flat shots/png-flat
+            $M -u driver/matte.py --outline shots/raw shots/raw-flat shots/png-outline
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shots
+          path: shots
+          retention-days: 14

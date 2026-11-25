@@ -1,0 +1,319 @@
+// the language-tools extension provides snippets and autocomplete
+var langTools = ace.require("ace/ext/language_tools");
+// used to render usage-sample tooltips (and snippet previews) with the same tokenizer+theme as the live editor
+var staticHighlight = ace.require("ace/ext/static_highlight");
+var Range = ace.require("ace/range").Range;
+var lang = ace.require("ace/lib/lang");
+var aceDom = ace.require("ace/lib/dom");
+
+// Wrap the ace UndoManager's mutation methods with callbacks to the pyobjc EditorView
+// keeping it up-to-date on whether the file has been modified & whether undo/redo are available.
+// Also send a copy of the buffer contents with each change so the EditorView's shadow copy is
+// fresh enough to be read synchronously at save-time.
+const {UndoManager:__UndoManager} = ace.require('ace/undomanager')
+function UndoManager(){ __UndoManager.call(this) }
+UndoManager.prototype = Object.create(__UndoManager.prototype);
+for (const method of ['add', 'undo', 'redo', 'reset']){
+    UndoManager.prototype[method] = function(){
+        __UndoManager.prototype[method].call(this, ...arguments);
+        app.sync_edits(this.$undoStack.length, window?.editor?.source?.() ?? null)
+    }
+}
+
+// the plotdevice mode & snippets live outside the vendored ace directory
+ace.config.setModuleUrl('ace/mode/plotdevice', 'js/mode/plotdevice.js')
+ace.config.setModuleUrl('ace/snippets/plotdevice', 'js/mode/snippets.js')
+
+// local modifications to ace's autocomplete, applied to the stock ext-language_tools.js
+const {Autocomplete, FilteredList} = ace.require('ace/autocomplete')
+const {showDocTooltip:__showDocTooltip, openPopup:__openPopup} = Autocomplete.prototype
+const {filterCompletions:__filterCompletions} = FilteredList.prototype
+
+// default tooltip style is too specific to override with css, so manually set background to match theme
+Autocomplete.prototype.showDocTooltip = function(item){
+    __showDocTooltip.call(this, item)
+    this.tooltipNode.style.backgroundColor = getComputedStyle(this.editor.container).backgroundColor
+}
+
+// the popup's rows repaint on the next animation frame, so reposition the doc tooltip once they have
+Autocomplete.prototype.openPopup = function(){
+    __openPopup.call(this, ...arguments)
+    requestAnimationFrame(() => this.updateDocTooltip())
+}
+
+// hide locals that duplicate a snippet or keyword, and keywords that duplicate a snippet
+FilteredList.prototype.filterCompletions = function(){
+    var results = __filterCompletions.call(this, ...arguments)
+    var nameOf = item => item.caption || item.value || item.name
+    var isSnippet = item => item.completerId=='snippetCompleter'
+    var snippetNames = new Set(results.filter(isSnippet).map(nameOf))
+    var keywordNames = new Set(results.filter(item => !isSnippet(item) && item.meta=='keyword').map(nameOf))
+    return results.filter(item => {
+        var name = nameOf(item)
+        if (item.meta=='local') return !snippetNames.has(name) && !keywordNames.has(name)
+        if (item.meta=='keyword') return !snippetNames.has(name)
+        return true
+    })
+}
+
+var Editor = function(elt){
+    var dom = document.querySelector(elt)
+    var ed = ace.edit(dom.getAttribute('id'))
+    var undo = new UndoManager()
+    var sess = null
+    var _menu_cmds = { // commands whose keyboard shortcuts are caught by ace rather than NSView
+        "Edit":['selectline', 'splitIntoLines', 'addCursorAbove', 'addCursorBelow', 'centerselection',
+                'blockindent', 'blockoutdent', 'togglecomment','selectMoreAfter', 'selectMoreBefore',
+                'expandSnippet', 'startAutocomplete', 'movelinesup', 'movelinesdown','modifyNumberUp',
+                'modifyNumberDown'],
+        "Python":[]
+    }
+    var that = {
+        init:function(){
+
+            // configure the editor
+            ed.setShowPrintMargin(false);
+            ed.setFadeFoldWidgets(true);
+            ed.setHighlightActiveLine(false);
+            ed.setHighlightGutterLine(false);
+            ed.commands.addCommands(PLOTDEVICE_KEYBINDINGS) // TODO: only apply when Default is chosen in prefs…
+            ed.setOptions({
+                enableBasicAutocompletion: true,
+                // enableLiveAutocompletion: true,
+                enableSnippets: true
+            });
+            ed.renderer.updateCharacterSize()
+            ed.commands.on("afterExec", that._commandStream)
+            ed.on("blur", that._blur)
+            ed.on("focus", that._focus)
+
+            // enable syntax-documentation tooltips
+            ed.hoverTooltip.setDataProvider(that._sampleHover)
+            ed.hoverTooltip.addToEditor(ed)
+
+            // keep the native side informed of which documented symbol (if any) is
+            // under the pointer and/or text cursor, so the right-click context menu
+            // can offer a "View Documentation" item
+            that._docTarget = {mouse: null, caret: null}
+            ed.on("changeSelection", that._trackDocTarget)
+            ed.on("nativecontextmenu", that._trackDocTarget)
+
+            // configure the buffer
+            sess = ed.getSession()
+            sess.setMode("ace/mode/plotdevice");
+            sess.setTabSize(4);
+            sess.setUseSoftTabs(true);
+            sess.setUndoManager(undo);
+
+            // it would be nice if this didn't *select* the undo segment, but did *scroll*
+            // the viewport to the cursor position. ace.js's default behavior is all or none
+            // sess.setUndoSelect(false);
+
+            // show a preview popup when a snippet is highlighted
+            langTools.snippetCompleter.getDocTooltip = function(item){
+                if (item.snippet && !item.docHTML){
+                    // use a (fixed) version of ext-language_tools.js's helper for formatting snippets that
+                    // correctly handles nested placeholders
+                    var placeholders = {};
+                    var source = item.snippet, prev;
+                    do {
+                        prev = source;
+                        source = source.replace(/\${(\d+)(:([^{}]*))?}/g, (_, p1, p2, p3) => (placeholders[p1] = p3 || ''));
+                    } while (source !== prev);
+                    source = source.replace(/\$(\d+?)/g, (_, p1) => placeholders[p1] || '');
+
+                    // trim trailing whitespace so a bare final tabstop doesn't render as an empty line
+                    source = source.split('\n').map(line => line.replace(/[ \t]+$/, '')).join('\n')
+                    source = source.replace(/\n+$/, '')
+
+                    // syntax-highlight the preview using the same tokenizer+theme as the live editor
+                    var result = staticHighlight.renderSync(source, sess.getMode(), ed.renderer.theme, 1, true)
+                    aceDom.importCssString(result.css, "ace_highlight", true)
+                    item.docHTML = "<b>" + lang.escapeHTML(item.caption) + "</b><hr></hr>" + result.html
+                }
+            }
+
+            return that
+        },
+        _commandStream:function(e){
+            // listen for commands that have key equivalents in the main menu and notify the
+            // objc side of things when one of them is entered
+            var cmd = e.command.name
+            for (const [cmds, menu] of Object.entries(_menu_cmds)){
+                if (cmds.includes(cmd)) app.flash_menu(menu)
+            }
+        },
+
+
+        blur:function(){
+            ed.blur()
+        },
+        _blur:function(){
+            ed.setHighlightActiveLine(false)
+            ed.setHighlightGutterLine(false)
+        },
+
+        _isBindingTarget:function(token){
+            // spot locations where a term is being used as a kwarg (or other assignment), so we can
+            // exclude it from the usage-sample tooltip and doc-target tracking (since it would only
+            // coincidentally share the name of a documented function in that case)
+            return !!token && (token.type === "variable.parameter" || token.type === "variable.assignment")
+        },
+        _trackDocTarget:function(e){
+            // find the symbol currently under the mouse (if e is defined) or the insertion point (if not)
+            let coords = e?.domEvent
+            let pos = coords ? ed.renderer.screenToTextCoordinates(coords.clientX, coords.clientY) : ed.getCursorPosition()
+            var token = sess.getTokenAt(pos.row, pos.column)
+            var word = token && token.value
+
+            // if there's documentation for it (and it's changed since the last event), relay it to the pyobjc side
+            var url = (!that._isBindingTarget(token) && word && PLOTDEVICE_SYMBOL_DOCS[word]) || null
+            let inputType = coords ? "mouse" : "caret"
+            if (url !== that._docTarget[inputType]?.url){
+                that._docTarget[inputType] = url ? {word, url} : null
+                app.setDocTarget(that._docTarget)
+            }
+        },
+        _sampleHover:function(e, editor){
+            var pos = e.getDocumentPosition()
+            var token = sess.getTokenAt(pos.row, pos.column)
+            var word = token && token.value
+
+            // don't show tooltip for kwargs if the docs are for a function
+            if (!token || that._isBindingTarget(token) || !PLOTDEVICE_SYMBOL_USAGE.hasOwnProperty(word)) return
+            var range = Range.fromPoints({row:pos.row, column:token.start}, {row:pos.row, column:token.start+token.value.length})
+            var text = PLOTDEVICE_SYMBOL_USAGE[word].join("\n")
+
+            // use syntax highlighting to style the usage sample
+            staticHighlight.render(text, sess.getMode(), ed.getTheme(), 1, true, function(result){
+                var tooltip = document.createElement("div")
+                tooltip.innerHTML = result.html
+
+                // add a link to the docs page (if applicable)
+                var url = PLOTDEVICE_SYMBOL_DOCS[word]
+                if (url){
+                    var more = document.createElement("div")
+                    more.className = "ace_symbol-doc-more"
+                    more.style.color = getComputedStyle(dom).color
+                    var moreText = document.createElement("span")
+                    moreText.textContent = "view documentation…"
+                    more.appendChild(moreText)
+                    more.addEventListener("click", function(){ app.openDoc(url) })
+                    tooltip.appendChild(more)
+                }
+
+                ed.hoverTooltip.showForRange(editor, range, tooltip, e)
+            })
+        },
+
+        focus:function(){
+            ed.focus()
+        },
+        _focus:function(){
+            ed.setHighlightActiveLine(true)
+            ed.setHighlightGutterLine(true)
+        },
+
+        source:function(src){
+            if (src===undefined){
+                return ed.getValue()
+            }else{
+                ed.execCommand("refreshdoc",src) // set src without adding undo action
+                ed.clearSelection();
+                ed.moveCursorTo(0, 0);
+            }
+        },
+        font:function(family, px){
+            dom.style.fontFamily = family
+            dom.style.fontSize = `${px}px`
+        },
+        rescroll:function(){
+            // ace measures the scrollbars once, so redo it when the system's scroller style changes
+            var r = ed.renderer, w = aceDom.scrollbarWidth(document)
+            r.$scrollbarWidth = r.scrollBarV.width = r.scrollBarH.height = w
+            r.scrollBarV.element.style.width = r.scrollBarV.inner.style.width = (w || 15) + 5 + "px"
+            r.scrollBarH.element.style.height = r.scrollBarH.inner.style.height = (w || 15) + 5 + "px"
+            ed.resize(true)
+        },
+        theme:function(thm){
+            if (thm===undefined){
+                return ed.getTheme()
+            }else{
+                ed.setTheme(thm, function(){
+                    // native scrollbars only pick up a new color-scheme when they're rebuilt
+                    for (const bar of dom.querySelectorAll('.ace_scrollbar')){
+                        bar.style.overflow = 'hidden'
+                        bar.offsetWidth
+                        bar.style.overflow = ''
+                    }
+                })
+            }
+        },
+        bindings:function(mode){
+            if (mode===undefined){
+                return ed.getKeyboardHandler()
+            }else{
+                module = (mode=='mac') ? null : 'ace/keyboard/'+mode
+                ed.setKeyboardHandler(module)
+            }
+        },
+        selected:function(){
+            var sel = ed.getSelection()
+            var rng = ed.getSelectionRange()
+            var tok = sess.getTokens(rng.start.row)
+            // console.log('tokens', tok.map(t => t.type))
+            var at = sess.getTokenAt(rng.start.row,rng.start.column)
+            // tok.forEach((t, i) => {
+            //     if (t===at) console.log('FOUND', t,'at',i)
+            // })
+            var word_rng = sess.getAWordRange(rng.start.row,rng.start.column)
+            var word = sess.getTextRange(word_rng)
+            return word
+        },
+        exec:function(cmd){
+            ed.execCommand(cmd)
+        },
+        wrap:function(mode){
+            if (mode===undefined){
+                return sess.getUseWrapMode();
+            }else{
+                sess.setUseWrapMode(mode);
+            }
+        },
+        invisibles:function(mode){
+            if (mode===undefined){
+                return sess.getShowInvisibles();
+            }else{
+                ed.setShowInvisibles(mode);
+            }
+        },
+        undo:function(){
+            undo.undo()
+        },
+        redo:function(){
+            undo.redo()
+        },
+        jump:function(line){
+            ed.gotoLine(line);
+        },
+        insert:function(txt){
+            ed.insert(txt)
+        },
+        mark:function(err, lines){
+            if (err==null){
+                sess.clearAnnotations()
+            }else{
+                var anns = lines.map((line, i) => {
+                    var ann = {row:line, col:0, type:"warning"}
+                    if (i==0) Object.assign(ann, {type:"error", text:err})
+                    return ann
+                })
+                sess.setAnnotations(anns)
+            }
+
+        }
+    }
+
+
+    return dom ? that.init() : {}
+}

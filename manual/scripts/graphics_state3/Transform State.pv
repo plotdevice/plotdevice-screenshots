@@ -1,0 +1,11 @@
+rotate(40)
+poly(60, 60, 20)
+
+rotate(10)
+poly(60, 120, 20)
+
+rotate(10)
+poly(60, 180, 20)
+
+rotate(10)
+poly(60, 240, 20)

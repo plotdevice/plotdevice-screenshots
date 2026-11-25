@@ -1,0 +1,12 @@
+size(400,400)
+
+fill('#09e', 0.1)
+stroke('#09e')
+pen(.25)
+
+for i in range(100):
+    x = random(WIDTH)
+    y = random(HEIGHT)
+    r = random(5, 50)
+    
+    arc(x, y, r)

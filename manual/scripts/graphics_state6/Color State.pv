@@ -1,0 +1,12 @@
+fill('orange')
+oval(10, 10, 50, 50)
+
+with fill('red'):
+    oval(10, 70, 50, 50)
+
+with stroke(.6), fill(.9):
+    oval(10, 130, 50, 50)
+    with scale(0.5):
+        oval(10, 190, 50, 50)
+
+oval(10, 250, 50, 50)

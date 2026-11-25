@@ -1,0 +1,13 @@
+# use default fill & stroke
+arc(40, 40, 25)
+
+# reset fill
+fill('red')     
+arc(40, 100, 25)
+arc(40, 160, 25)
+
+# reset stroke & fill
+stroke('black')
+nofill()
+arc(40, 220, 25)
+arc(40, 280, 25)

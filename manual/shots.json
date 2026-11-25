@@ -1,0 +1,285 @@
+[
+ {
+  "name": "animation-example",
+  "script": "animation-example/TrigToy.pv",
+  "content": [
+   607,
+   255
+  ],
+  "split": 244,
+  "output": 216,
+  "frames": 44
+ },
+ {
+  "name": "animation-export",
+  "script": "animation-export/TrigToy.pv",
+  "content": [
+   464,
+   299
+  ],
+  "split": 220,
+  "output": 215,
+  "frames": 44,
+  "sheet": {
+   "kind": "movie",
+   "settings": {
+    "last": 150,
+    "fps": 30
+   },
+   "where": "~/Pictures"
+  },
+  "appearances": [
+   "light"
+  ]
+ },
+ {
+  "name": "animation-state",
+  "script": "animation-state/Census.pv",
+  "content": [
+   602,
+   380
+  ],
+  "split": 247,
+  "output": 333,
+  "frames": 86
+ },
+ {
+  "name": "color-lines",
+  "script": "color-lines/Stripes.pv",
+  "content": [
+   609,
+   476
+  ],
+  "split": 275,
+  "output": 350
+ },
+ {
+  "name": "commands1",
+  "script": "commands1/Floral.pv",
+  "content": [
+   641,
+   400
+  ],
+  "split": 300,
+  "output": 294
+ },
+ {
+  "name": "environment-copy-as-pdf",
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "menu": {
+   "bar": "Edit",
+   "item": "Copy Image As PDF"
+  }
+ },
+ {
+  "name": "environment-export",
+  "script": "environment-export/Balls.pv",
+  "content": [
+   550,
+   385
+  ],
+  "split": 258,
+  "output": 287,
+  "sheet": {
+   "kind": "image",
+   "settings": {
+    "last": 50
+   },
+   "where": "~/Desktop"
+  }
+ },
+ {
+  "name": "environment1",
+  "script": "environment1/Balls.pv",
+  "content": [
+   550,
+   390
+  ],
+  "split": 258,
+  "output": 287,
+  "outline": true,
+  "install": [
+   {
+    "to": "src/etc/tut/environment1.png",
+    "tag": true
+   },
+   {
+    "from": "png-outline",
+    "to": "art/environment-panes-window.png"
+   }
+  ]
+ },
+ {
+  "name": "environment3",
+  "script": "environment3/Coordinate System.pv",
+  "content": [
+   542,
+   235
+  ],
+  "split": 254,
+  "output": 173,
+  "install": [
+   {
+    "to": "art/environment3-window.png"
+   }
+  ]
+ },
+ {
+  "name": "graphics_state1",
+  "script": "graphics_state1/State Changer.pv",
+  "content": [
+   543,
+   333
+  ],
+  "split": 254,
+  "output": 277
+ },
+ {
+  "name": "graphics_state2",
+  "script": "graphics_state2/Transform State.pv",
+  "content": [
+   552,
+   346
+  ],
+  "split": 346,
+  "output": 280
+ },
+ {
+  "name": "graphics_state3",
+  "script": "graphics_state3/Transform State.pv",
+  "content": [
+   542,
+   309
+  ],
+  "split": 260,
+  "output": 250
+ },
+ {
+  "name": "graphics_state4",
+  "script": "graphics_state4/Transform State.pv",
+  "content": [
+   542,
+   291
+  ],
+  "split": 260,
+  "output": 235
+ },
+ {
+  "name": "graphics_state6",
+  "script": "graphics_state6/Color State.pv",
+  "content": [
+   548,
+   347
+  ],
+  "split": 257,
+  "output": 255
+ },
+ {
+  "name": "primitives1",
+  "script": "primitives1/Primitives.pv",
+  "content": [
+   545,
+   182
+  ],
+  "split": 256,
+  "output": 134
+ },
+ {
+  "name": "primitives2",
+  "script": "primitives2/Primitives.pv",
+  "content": [
+   545,
+   182
+  ],
+  "split": 256,
+  "output": 134
+ },
+ {
+  "name": "repetition1",
+  "script": "repetition1/SoapSuds.pv",
+  "content": [
+   593,
+   361
+  ],
+  "split": 278,
+  "output": 266
+ },
+ {
+  "name": "strings-characters",
+  "script": "strings-characters/Zapftig.pv",
+  "content": [
+   653,
+   400
+  ],
+  "split": 307,
+  "output": 294,
+  "hover_title": true
+ },
+ {
+  "name": "strings-file",
+  "script": "strings-file/c86.pv",
+  "content": [
+   687,
+   472
+  ],
+  "split": 360,
+  "output": 347,
+  "assets": {
+   "~/glass-arcade.jpg": "assets/glass-arcade.jpg",
+   "~/sarah-records.txt": "assets/sarah-records.txt"
+  }
+ },
+ {
+  "name": "console-runner",
+  "viewer": "console-runner/Ovals.pv",
+  "content": [
+   500,
+   500
+  ]
+ },
+ {
+  "name": "plotdevice-tool-install",
+  "prefs": true,
+  "appearances": [
+   "light"
+  ]
+ },
+ {
+  "name": "variables-panel",
+  "script": "variables-panel/variables.pv",
+  "content": [
+   660,
+   234
+  ],
+  "split": 201,
+  "output": 234,
+  "panel": {
+   "gap": 11,
+   "click": "introduce_yourself"
+  },
+  "scroll": [
+   90,
+   75
+  ],
+  "zoom": 0.75
+ },
+ {
+  "name": "letterknitter-interface",
+  "script": "letterknitter-interface/letterknitter.pv",
+  "content": [
+   600,
+   300
+  ],
+  "split": 300,
+  "output": 220,
+  "panel": {
+   "only": true
+  }
+ }
+]

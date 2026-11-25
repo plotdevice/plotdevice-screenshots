@@ -1,0 +1,12 @@
+def introduce_yourself():
+  text("My name is %s" % name, 100, 100)
+  text("I am {} years old".format(age), 100, 140)
+  if voter:
+    text("I am a registered voter", 100, 180)
+  else:
+    text("I will be registering to vote soon", 100, 180)
+
+var("name", TEXT, "John Doe")
+var("age", NUMBER, 37, 0, 90, step=1)
+var("voter", BOOLEAN, True, label="registered?")
+var("introduce_yourself", BUTTON, "Say Hi")

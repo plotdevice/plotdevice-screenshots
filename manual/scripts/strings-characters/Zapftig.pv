@@ -1,0 +1,12 @@
+size(400, 400)
+background(0.2)
+alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+with fill(1), stroke(0.2), font("Zapfino"):
+    for i in range(80):
+        font(size=random(400))
+        rotate(random(360))
+        x, y = random(WIDTH), random(HEIGHT)
+        char = choice(alphabet)
+        text(char, x, y, outline=True)
+

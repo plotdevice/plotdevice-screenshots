@@ -1,0 +1,10 @@
+# --no-binary :all:
+xattr
+cachecontrol[filecache]
+cffi
+pyobjc==12.2.2
+setuptools
+wheel
+requests
+truststore
+six

@@ -586,11 +586,18 @@ def probe_context(ctrl, win, found):
     """Right-click the editor, canvas, output pane & a variables field, recording each context menu as it opens"""
     import Quartz as Q
     from AppKit import NSNotificationCenter
-    seen = []
+    seen, tracked, added = [], [], []
     def began(note):
+        tracked.append(note.object())
         seen.append(describe_menu(note.object()))
-    observer = on_main(lambda: NSNotificationCenter.defaultCenter().addObserverForName_object_queue_usingBlock_(
-        'NSMenuDidBeginTrackingNotification', None, None, began))
+    def adding(note):
+        menu, idx = note.object(), note.userInfo()['NSMenuItemIndex']
+        it = menu.itemAtIndex_(idx)
+        added.append(dict(menu=str(menu.title()), index=int(idx), title=str(it.title()) if it else None,
+                          id=str(it.identifier()) if it and it.identifier() else None, cls=str(it.className()) if it else None))
+    nc = on_main(NSNotificationCenter.defaultCenter)
+    observer = on_main(lambda: nc.addObserverForName_object_queue_usingBlock_('NSMenuDidBeginTrackingNotification', None, None, began))
+    add_observer = on_main(lambda: nc.addObserverForName_object_queue_usingBlock_('NSMenuDidAddItemNotification', None, None, adding))
     H = found[0]['frame'][3]
 
     def center(view):
@@ -615,13 +622,18 @@ def probe_context(ctrl, win, found):
         if before:
             before()
             settle(0.5)
-        del seen[:]
+        del seen[:], tracked[:], added[:]
         click(center(view))
         settle(1.5)
+        # the same menu objects again, while they're still open (anything added after tracking began shows up here)
+        try:
+            later = on_main(lambda: [describe_menu(m) for m in tracked], timeout=5)
+        except RuntimeError:
+            later = 'main thread busy'
         for down in (True, False):
             Q.CGEventPost(Q.kCGHIDEventTap, Q.CGEventCreateKeyboardEvent(None, 53, down)) # escape
         settle(1)
-        return dict(view=label, menus=list(seen))
+        return dict(view=label, menus=list(seen), while_open=later, added=list(added))
 
     out = []
     webview = ctrl.editorView.webview if ctrl.editorView else None
@@ -649,7 +661,7 @@ def probe_context(ctrl, win, found):
             Q.CGEventPost(Q.kCGHIDEventTap, Q.CGEventCreateKeyboardEvent(None, 53, down))
         settle(1)
         out.append(dict(view='variables text field', menus=list(seen)))
-    on_main(lambda: NSNotificationCenter.defaultCenter().removeObserver_(observer))
+    on_main(lambda: (nc.removeObserver_(observer), nc.removeObserver_(add_observer)))
     return out
 
 def probe_menu(probe):

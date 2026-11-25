@@ -20,7 +20,9 @@ Shot keys:
   outline   true to also grab it without shadows, so matte.py --outline can keep just its edge
   panel     include the variables panel: {gap: points between the window's bottom edge & the panel's
             top (with their right edges aligned), click: a BUTTON variable to press first,
-            only: true to shoot the panel alone}
+            only: true to shoot the panel alone, over: true to leave the document's canvas behind it,
+            style: {titlebar: titled, toolbar: unified|compact, material: an NSVisualEffectMaterial
+            name, blending: within, appearance: an NSAppearance name or null to follow the system}}
   hover_title  true to leave the pointer over the window's title (showing its chevron)
   zoom      the canvas's zoom level (1.0 is 100%)
   scroll    [x, y] of the canvas point to scroll to the pane's top-left
@@ -427,6 +429,31 @@ def region_for(win, scr, shot, extra=()):
         y1 = scr['frame'][1] + scr['frame'][3] # and up to the top of the screen
     return [x0, y0, x1 - x0, y1 - y0]
 
+def style_panel(dash, panel, style):
+    """Try out other looks for the variables panel: its title bar, a toolbar, its material & appearance"""
+    import AppKit
+    from AppKit import NSToolbar, NSWindowStyleMaskUtilityWindow
+    def styling():
+        view = panel.contentView()
+        if style.get('titlebar') == 'titled':
+            panel.setStyleMask_(panel.styleMask() & ~NSWindowStyleMaskUtilityWindow)
+        if style.get('toolbar'):
+            panel.setToolbar_(NSToolbar.alloc().initWithIdentifier_('pd-shots-empty'))
+            panel.setToolbarStyle_(dict(unified=3, compact=4)[style['toolbar']])
+        if style.get('material'):
+            view.setMaterial_(getattr(AppKit, 'NSVisualEffectMaterial' + style['material']))
+        if style.get('blending') == 'within':
+            view.setBlendingMode_(AppKit.NSVisualEffectBlendingModeWithinWindow)
+        if 'appearance' in style:
+            # the nib forces darkAqua on both the panel and its content view; None follows the system
+            look = AppKit.NSAppearance.appearanceNamed_(style['appearance']) if style['appearance'] else None
+            panel.setAppearance_(look)
+            view.setAppearance_(look)
+        dash.updateInterface() # lay the rows out again for the new title bar
+        f = panel.frame()
+        return dict(mask=int(panel.styleMask()), material=int(view.material()), size=[f.size.width, f.size.height])
+    return on_main(styling)
+
 def scroll_canvas(ctrl, pt):
     """Scroll the canvas so a canvas point sits at the pane's top-left"""
     def scrolling():
@@ -484,13 +511,19 @@ def shoot(shot, appearance, scr, found):
             if opts.get('click'):
                 on_main(dash.callHandler_, opts['click']) # what pressing the button does
                 settle(1)
+            if opts.get('style'):
+                info['style'] = style_panel(dash, panel, opts['style'])
+                settle(1)
             if opts.get('only'):
-                # shoot the panel by itself, with the document moved out of its way
+                # shoot the panel by itself, with the document moved out of its way (or, with over, behind it)
                 def isolating():
                     pf, wf = panel.frame(), win.frame()
                     sx, sy, sw, sh = scr['frame']
                     panel.setFrameTopLeftPoint_((sx + 140, sy + sh - 120))
-                    win.setFrameTopLeftPoint_((sx + 140 + pf.size.width + 2 * MARGIN + 40, sy + sh - 120))
+                    if opts.get('over'):
+                        win.setFrameTopLeftPoint_((sx + 100, sy + sh - 60)) # the canvas fills in behind the panel
+                    else:
+                        win.setFrameTopLeftPoint_((sx + 140 + pf.size.width + 2 * MARGIN + 40, sy + sh - 120))
                     panel.makeKeyAndOrderFront_(None)
                     panel.makeFirstResponder_(None) # no focused field
                 on_main(isolating)

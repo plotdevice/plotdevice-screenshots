@@ -281,5 +281,186 @@
   "panel": {
    "only": true
   }
+ },
+ {
+  "script": "variables-panel/variables.pv",
+  "content": [
+   660,
+   400
+  ],
+  "split": 500,
+  "output": 400,
+  "install": [],
+  "name": "experiment-titlebar-utility",
+  "appearances": [
+   "dark"
+  ],
+  "panel": {
+   "only": true,
+   "over": true,
+   "click": "introduce_yourself",
+   "style": {}
+  }
+ },
+ {
+  "script": "variables-panel/variables.pv",
+  "content": [
+   660,
+   400
+  ],
+  "split": 500,
+  "output": 400,
+  "install": [],
+  "name": "experiment-titlebar-titled",
+  "appearances": [
+   "dark"
+  ],
+  "panel": {
+   "only": true,
+   "over": true,
+   "click": "introduce_yourself",
+   "style": {
+    "titlebar": "titled"
+   }
+  }
+ },
+ {
+  "script": "variables-panel/variables.pv",
+  "content": [
+   660,
+   400
+  ],
+  "split": 500,
+  "output": 400,
+  "install": [],
+  "name": "experiment-titlebar-toolbar",
+  "appearances": [
+   "dark"
+  ],
+  "panel": {
+   "only": true,
+   "over": true,
+   "click": "introduce_yourself",
+   "style": {
+    "toolbar": "compact"
+   }
+  }
+ },
+ {
+  "script": "variables-panel/variables.pv",
+  "content": [
+   660,
+   400
+  ],
+  "split": 500,
+  "output": 400,
+  "install": [],
+  "name": "experiment-material-hud-forced-dark",
+  "appearances": [
+   "light",
+   "dark"
+  ],
+  "panel": {
+   "only": true,
+   "over": true,
+   "click": "introduce_yourself",
+   "style": {}
+  }
+ },
+ {
+  "script": "variables-panel/variables.pv",
+  "content": [
+   660,
+   400
+  ],
+  "split": 500,
+  "output": 400,
+  "install": [],
+  "name": "experiment-material-hud",
+  "appearances": [
+   "light",
+   "dark"
+  ],
+  "panel": {
+   "only": true,
+   "over": true,
+   "click": "introduce_yourself",
+   "style": {
+    "material": "HUDWindow",
+    "appearance": null
+   }
+  }
+ },
+ {
+  "script": "variables-panel/variables.pv",
+  "content": [
+   660,
+   400
+  ],
+  "split": 500,
+  "output": 400,
+  "install": [],
+  "name": "experiment-material-popover",
+  "appearances": [
+   "light",
+   "dark"
+  ],
+  "panel": {
+   "only": true,
+   "over": true,
+   "click": "introduce_yourself",
+   "style": {
+    "material": "Popover",
+    "appearance": null
+   }
+  }
+ },
+ {
+  "script": "variables-panel/variables.pv",
+  "content": [
+   660,
+   400
+  ],
+  "split": 500,
+  "output": 400,
+  "install": [],
+  "name": "experiment-material-window",
+  "appearances": [
+   "light",
+   "dark"
+  ],
+  "panel": {
+   "only": true,
+   "over": true,
+   "click": "introduce_yourself",
+   "style": {
+    "material": "WindowBackground",
+    "appearance": null
+   }
+  }
+ },
+ {
+  "script": "variables-panel/variables.pv",
+  "content": [
+   660,
+   400
+  ],
+  "split": 500,
+  "output": 400,
+  "install": [],
+  "name": "experiment-material-menu",
+  "appearances": [
+   "light",
+   "dark"
+  ],
+  "panel": {
+   "only": true,
+   "over": true,
+   "click": "introduce_yourself",
+   "style": {
+    "material": "Menu",
+    "appearance": null
+   }
+  }
  }
 ]

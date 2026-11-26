@@ -681,11 +681,32 @@ def probe_menu(probe):
             action = it.action()
             items.append(dict(title=str(it.title()), action=(action.decode() if isinstance(action, bytes) else str(action)) if action else None,
                               identifier=str(it.identifier()) if it.identifier() else None, hidden=bool(it.isHidden()),
-                              separator=bool(it.isSeparatorItem()), submenu=bool(it.hasSubmenu()), cls=str(it.className())))
+                              separator=bool(it.isSeparatorItem()), submenu=bool(it.hasSubmenu()), cls=str(it.className()),
+                              image=it.image() is not None,
+                              visibility=int(it.preferredImageVisibility()) if it.respondsToSelector_('preferredImageVisibility') else None))
         return items
     def opening():
         click = open_menu(dict(bar=bar))
         close_menu(click)
+    if probe.get('bars'):
+        # an inventory of every menu (and submenu), each opened once first
+        def walk(menu, depth=0):
+            rows = []
+            for it in menu.itemArray():
+                if it.isSeparatorItem():
+                    continue
+                row = dict(title=str(it.title()), image=it.image() is not None, hidden=bool(it.isHidden()),
+                           visibility=int(it.preferredImageVisibility()) if it.respondsToSelector_('preferredImageVisibility') else None)
+                if it.hasSubmenu() and depth < 3:
+                    row['submenu'] = walk(it.submenu(), depth + 1)
+                rows.append(row)
+            return rows
+        out = {}
+        for b in probe['bars']:
+            opening_bar = open_menu(dict(bar=b))
+            close_menu(opening_bar)
+            out[b] = on_main(lambda: walk(NSApp().mainMenu().itemWithTitle_(b).submenu()))
+        return out
     out = dict(launch=on_main(listing))
     opening()
     out['opened'] = on_main(listing)
@@ -696,6 +717,8 @@ def probe_menu(probe):
             if probe['remove'].lower() in str(it.title()).lower():
                 menu.removeItem_(it)
         return gone
+    if not probe.get('remove'):
+        return out
     out['removed'] = on_main(removing)
     opening()
     out['reopened'] = on_main(listing)

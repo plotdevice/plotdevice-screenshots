@@ -662,5 +662,37 @@
   "split": 300,
   "output": 230,
   "seed": 6
+ },
+ {
+  "name": "experiment-menu-resize",
+  "menu": {
+   "bar": "Window",
+   "item": "Move & Resize"
+  },
+  "install": [],
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "seed": 6
+ },
+ {
+  "name": "experiment-menu-tile",
+  "menu": {
+   "bar": "Window",
+   "item": "Full Screen Tile"
+  },
+  "install": [],
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "seed": 6
  }
 ]

@@ -17,12 +17,24 @@ You can also install anything you find on https://pypi.org here using the comman
   plotdevice --install <package-name>
 """
 
+KEEP_ICONS = ('Move & Resize', 'Full Screen Tile') # experiment: leave the tiling submenus' icons alone
+
+def kept(menu):
+    # whether a menu is (inside) one of the KEEP_ICONS submenus
+    while menu.supermenu():
+        sup = menu.supermenu()
+        idx = sup.indexOfItemWithSubmenu_(menu)
+        if idx >= 0 and str(sup.itemAtIndex_(idx).title()) in KEEP_ICONS:
+            return True
+        menu = sup
+    return False
+
 def hide_icons(item):
     # macOS 27 draws icons beside some standard menu items (Settings, Share, the help book, and the Window
     # menu's tiling commands and window list); 2 is NSMenuItemImageVisibilityHidden, which our SDK predates
     if item.respondsToSelector_("setPreferredImageVisibility:"):
         item.setPreferredImageVisibility_(2)
-    if item.hasSubmenu():
+    if item.hasSubmenu() and str(item.title()) not in KEEP_ICONS:
         for sub in item.submenu().itemArray():
             hide_icons(sub)
 
@@ -50,7 +62,7 @@ class PlotDeviceAppDelegate(NSObject):
         root = note.object()
         while root.supermenu():
             root = root.supermenu()
-        if root == NSApp().mainMenu():
+        if root == NSApp().mainMenu() and not kept(note.object()):
             hide_icons(item)
 
         # context menus get an autofill item (with no identifier) merged in as they open; hide it on the way in

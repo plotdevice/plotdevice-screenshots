@@ -695,7 +695,10 @@ def probe_menu(probe):
             for it in menu.itemArray():
                 if it.isSeparatorItem():
                     continue
+                action = it.action()
                 row = dict(title=str(it.title()), image=it.image() is not None, hidden=bool(it.isHidden()),
+                           action=(action.decode() if isinstance(action, bytes) else str(action)) if action else None,
+                           id=str(it.identifier()) if it.identifier() else None,
                            visibility=int(it.preferredImageVisibility()) if it.respondsToSelector_('preferredImageVisibility') else None)
                 if it.hasSubmenu() and depth < 3:
                     row['submenu'] = walk(it.submenu(), depth + 1)

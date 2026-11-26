@@ -17,6 +17,15 @@ You can also install anything you find on https://pypi.org here using the comman
   plotdevice --install <package-name>
 """
 
+def hide_icons(item):
+    # macOS 27 draws icons beside some standard menu items (Settings, Share, the Window menu's tiling
+    # commands and window list, the help book); 2 is NSMenuItemImageVisibilityHidden
+    if item.respondsToSelector_("setPreferredImageVisibility:"):
+        item.setPreferredImageVisibility_(2)
+    if item.hasSubmenu():
+        for sub in item.submenu().itemArray():
+            hide_icons(sub)
+
 class PlotDeviceAppDelegate(NSObject):
     examplesMenu = IBOutlet()
     updatesMenu = IBOutlet()
@@ -35,8 +44,16 @@ class PlotDeviceAppDelegate(NSObject):
         except IOError: pass
 
     def menuDidAddItem_(self, note):
-        # context menus get an autofill item (with no identifier) merged in as they open; hide it on the way in
         item = note.object().itemAtIndex_(note.userInfo()["NSMenuItemIndex"])
+
+        # hide the icons of items added to the menu bar after launch (e.g., the window list)
+        root = note.object()
+        while root.supermenu():
+            root = root.supermenu()
+        if root == NSApp().mainMenu():
+            hide_icons(item)
+
+        # context menus get an autofill item (with no identifier) merged in as they open; hide it on the way in
         inserts = [NSSelectorFromString(s) for s in ("_handleInsertFromContactsCommand:",
                    "_handleInsertFromPasswordsCommand:", "_handleInsertFromCreditCardsCommand:")]
         if item.hasSubmenu() and any(sub.action() in inserts for sub in item.submenu().itemArray()):
@@ -53,8 +70,10 @@ class PlotDeviceAppDelegate(NSObject):
         for it in edmenu.itemArray():
             if it.identifier() == "_NSMenuItemAutoFillIdentifier":
                 edmenu.removeItem_(it)
-            elif it.respondsToSelector_("setPreferredImageVisibility:"):
-                it.setPreferredImageVisibility_(2) # hidden
+
+        # hide the icons that macOS 27 still draws beside some items
+        for it in mm.itemArray():
+            hide_icons(it)
 
         # and drop the autofill item that appkit adds to context menus as they open
         nc = NSNotificationCenter.defaultCenter()

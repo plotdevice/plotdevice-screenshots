@@ -18,12 +18,10 @@ You can also install anything you find on https://pypi.org here using the comman
 """
 
 def tiling_menu(menu):
-    # the Window menu's Move & Resize and Full Screen Tile submenus, whose icons diagram each layout
-    for item in menu.itemArray():
-        action = item.action() or ''
-        if (action.decode() if isinstance(action, bytes) else str(action)).startswith(('_zoom', '_tile')):
-            return True
-    return False
+    # the Window menu's Move & Resize and Full Screen Tile submenus, whose icons diagram each layout (every
+    # command in them is a _zoom… or _tile… action, unlike the Window menu itself, which only has a few)
+    actions = [a.decode() if isinstance(a, bytes) else str(a) for a in (it.action() for it in menu.itemArray()) if a]
+    return bool(actions) and all(a.startswith(('_zoom', '_tile')) for a in actions)
 
 def hide_icons(item):
     # macOS 27 draws icons beside some standard menu items (Settings, Share, the help book, the Window

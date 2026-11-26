@@ -17,24 +17,20 @@ You can also install anything you find on https://pypi.org here using the comman
   plotdevice --install <package-name>
 """
 
-KEEP_ICONS = ('Move & Resize', 'Full Screen Tile') # experiment: leave the tiling submenus' icons alone
-
-def kept(menu):
-    # whether a menu is (inside) one of the KEEP_ICONS submenus
-    while menu.supermenu():
-        sup = menu.supermenu()
-        idx = sup.indexOfItemWithSubmenu_(menu)
-        if idx >= 0 and str(sup.itemAtIndex_(idx).title()) in KEEP_ICONS:
+def tiling_menu(menu):
+    # the Window menu's Move & Resize and Full Screen Tile submenus, whose icons diagram each layout
+    for item in menu.itemArray():
+        action = item.action() or ''
+        if (action.decode() if isinstance(action, bytes) else str(action)).startswith(('_zoom', '_tile')):
             return True
-        menu = sup
     return False
 
 def hide_icons(item):
-    # macOS 27 draws icons beside some standard menu items (Settings, Share, the help book, and the Window
-    # menu's tiling commands and window list); 2 is NSMenuItemImageVisibilityHidden, which our SDK predates
+    # macOS 27 draws icons beside some standard menu items (Settings, Share, the help book, the Window
+    # menu's window list); 2 is NSMenuItemImageVisibilityHidden, which our SDK predates
     if item.respondsToSelector_("setPreferredImageVisibility:"):
         item.setPreferredImageVisibility_(2)
-    if item.hasSubmenu() and str(item.title()) not in KEEP_ICONS:
+    if item.hasSubmenu() and not tiling_menu(item.submenu()):
         for sub in item.submenu().itemArray():
             hide_icons(sub)
 
@@ -62,7 +58,7 @@ class PlotDeviceAppDelegate(NSObject):
         root = note.object()
         while root.supermenu():
             root = root.supermenu()
-        if root == NSApp().mainMenu() and not kept(note.object()):
+        if root == NSApp().mainMenu() and not tiling_menu(note.object()):
             hide_icons(item)
 
         # context menus get an autofill item (with no identifier) merged in as they open; hide it on the way in
@@ -72,7 +68,7 @@ class PlotDeviceAppDelegate(NSObject):
             item.setHidden_(True)
 
     def menuDidBeginTracking_(self, note):
-        # appkit restores some of the window menu's icons after the fact, so hide them all again as the menu bar opens
+        # appkit restores some of the window menu's icons after the fact, so hide them again as the menu bar opens
         if note.object() == NSApp().mainMenu():
             for item in note.object().itemArray():
                 hide_icons(item)

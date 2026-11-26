@@ -57,8 +57,6 @@ jobs:
           mkdir -p "$OUT"
           vtool -show-build "$APP/Contents/MacOS/PlotDevice" > "$OUT/sdk.txt"
           cp SNAPSHOT "$OUT/" 2>/dev/null || true
-          grep -rn -B3 -A12 -i 'ImageVisibility' "$(xcrun --sdk macosx --show-sdk-path)/System/Library/Frameworks/AppKit.framework/Headers" > "$OUT/sdk-imagevisibility.txt" 2>&1 || true
-          xcrun --sdk macosx --show-sdk-version >> "$OUT/sdk-imagevisibility.txt" 2>&1 || true
           export PD_SHOTS_DIR="$OUT" PD_SHOTS_EXAMPLES="$PWD/plotdevice/examples" PYTHONPATH="$PWD/driver"
           export PD_SHOTS_ONLY="${{ github.event.inputs.only }}"
           [[ "${{ github.event.inputs.diagnose }}" == true ]] && export PD_SHOTS_DIAGNOSE=1

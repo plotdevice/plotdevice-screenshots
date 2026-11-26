@@ -82,26 +82,34 @@ def editor_info(name=None):
     return dict(_editor_info)
 
 def possibleToolLocations():
-    homebin = b'%s/bin/plotdevice'%os.environ['HOME'].encode('utf-8')
-    localbin = b'/usr/local/bin/plotdevice'
-    locations = [homebin, localbin]
-
     # find the user's login shell
-    userdir = ('/Users/'+os.environ['USER']).encode('utf8')
-    out, _ = Popen([b'dscl', b'.', b'-read', userdir, b'UserShell'], stdout=PIPE).communicate()
-    shell = out.replace(b'UserShell:', b'').strip()
+    userdir = '/Users/' + os.environ['USER']
+    out, _ = Popen(['dscl', '.', '-read', userdir, 'UserShell'], stdout=PIPE, text=True).communicate()
+    shell = out.replace('UserShell:', '').strip()
 
-    # try launching a shell to extract the user's path
+    # read the login shell's exported environment (env prints it the same way for every shell)
+    shell_env = {}
     if shell:
-        out, _ = Popen([shell, b"-l"], stdout=PIPE, stderr=PIPE, stdin=PIPE).communicate(b"echo $PATH")
-        for path in out.strip().split(b':'):
-            path += b'/plotdevice'
-            if b'/sbin' in path: continue
-            if path.startswith(b'/bin'): continue
-            if path.startswith(b'/usr/bin'): continue
-            if path in locations: continue
-            locations.append(path)
-    return [pth.decode('utf-8') for pth in locations]
+        out, _ = Popen([shell, '-l'], stdout=PIPE, stderr=PIPE, stdin=PIPE, text=True).communicate('/usr/bin/env')
+        for line in out.splitlines():
+            name, _, value = line.partition('=')
+            if name in ('PATH', 'XDG_BIN_HOME'):
+                shell_env[name] = value
+    path_dirs = [d.rstrip('/') for d in shell_env.get('PATH', '').split(':') if d]
+
+    # offer the usual bin dirs first if they're on the PATH, then any other writable PATH dir
+    home = os.environ['HOME']
+    usual = [shell_env.get('XDG_BIN_HOME', home + '/.local/bin').rstrip('/'), home + '/bin', '/usr/local/bin']
+    on_path = [d for d in usual if d in path_dirs]
+    others = []
+    for d in path_dirs:
+        is_bundled = '.app/' in d
+        if d in usual or is_bundled or d.endswith('/sbin'):
+            continue
+        if os.access(d, os.W_OK):
+            others.append(d)
+    off_path = [d for d in usual if d not in path_dirs]
+    return [os.path.join(d, 'plotdevice') for d in dict.fromkeys(on_path + others + off_path)]
 
 
 

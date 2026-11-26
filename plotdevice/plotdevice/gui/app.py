@@ -34,19 +34,29 @@ class PlotDeviceAppDelegate(NSObject):
         except OSError: pass
         except IOError: pass
 
+    def menuDidAddItem_(self, note):
+        # context menus get an autofill item (with no identifier) merged in as they open; hide it on the way in
+        item = note.object().itemAtIndex_(note.userInfo()["NSMenuItemIndex"])
+        inserts = [NSSelectorFromString(s) for s in ("_handleInsertFromContactsCommand:",
+                   "_handleInsertFromPasswordsCommand:", "_handleInsertFromCreditCardsCommand:")]
+        if item.hasSubmenu() and any(sub.action() in inserts for sub in item.submenu().itemArray()):
+            item.setHidden_(True)
+
     def applicationSupportsSecureRestorableState_(self, app):
         return True
 
     def applicationDidFinishLaunching_(self, note):
         mm=NSApp().mainMenu()
 
-        # disable the start-dictation and autofill items in the edit menu
+        # disable the autofill item in the edit menu
         edmenu = mm.itemAtIndex_(2).submenu()
         for it in edmenu.itemArray():
-            dictation = it.action() == NSSelectorFromString("startDictation:")
-            autofill = it.identifier() == "_NSMenuItemAutoFillIdentifier"
-            if dictation or autofill:
+            if it.identifier() == "_NSMenuItemAutoFillIdentifier":
                 edmenu.removeItem_(it)
+
+        # and drop the autofill item that appkit adds to context menus as they open
+        nc = NSNotificationCenter.defaultCenter()
+        nc.addObserver_selector_name_object_(self, "menuDidAddItem:", NSMenuDidAddItemNotification, None)
 
         # add a hidden item to the menus that can be triggered internally by the editor
         for menu in mm.itemArray()[2:5]:

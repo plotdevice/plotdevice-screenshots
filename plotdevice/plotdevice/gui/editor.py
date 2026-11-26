@@ -52,21 +52,15 @@ class DraggyWebView(WKWebView):
             return True
         return False
 
-    def willOpenMenu_withEvent_(self, menu, event):
-        self._trim_menu(menu, event)
-
     def menuDidBeginTracking_(self, note):
         # current webkit shows its context menu without calling willOpenMenu:withEvent:, so trim it as it opens
         menu, event = note.object(), NSApp().currentEvent()
         ours = any(str(item.identifier() or '').startswith('WKMenuItemIdentifier') for item in menu.itemArray())
-        if ours and event is not None and event.window() == self.window():
-            self._trim_menu(menu, event)
+        if not ours or event is None or event.window() != self.window():
+            return
 
-    @objc.python_method
-    def _trim_menu(self, menu, event):
         # omit everything from context menu except Cut/Copy/Paste (+ Inspect Element)
-        keep = ('WKMenuItemIdentifierCut', 'WKMenuItemIdentifierCopy',
-                'WKMenuItemIdentifierPaste', 'WKMenuItemIdentifierInspectElement')
+        keep = ('WKMenuItemIdentifierCopy', 'WKMenuItemIdentifierPaste', 'WKMenuItemIdentifierInspectElement')
         for item in list(menu.itemArray()):
             cut = item.tag() == 13 # webkit's tag for Cut (whose identifier isn't reliable)
             if item.identifier() not in keep and not cut:

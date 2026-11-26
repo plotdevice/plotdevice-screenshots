@@ -62,7 +62,8 @@ from AppKit import NSAlert, NSAlternateKeyMask, NSApp, NSAppearance, NSAppearanc
                    NSImageInterpolationHigh, NSItalicFontMask, NSJPEGFileType, NSJustifiedTextAlignment, \
                    NSKernAttributeName, NSKeyValueObservingOptionNew, NSLayoutConstraint, NSLayoutManager, \
                    NSLeftTextAlignment, NSLineBreakByWordWrapping, NSLineToBezierPathElement, NSLinkAttributeName, \
-                   NSMenu, NSMenuDidBeginTrackingNotification, NSMenuItem, NSMiniControlSize, NSMoveToBezierPathElement, NSMutableParagraphStyle, NSNib, \
+                   NSMenu, NSMenuDidAddItemNotification, NSMenuDidBeginTrackingNotification, NSMenuItem, \
+                   NSMiniControlSize, NSMoveToBezierPathElement, NSMutableParagraphStyle, NSNib, \
                    NSOffState, NSOnState, NSParagraphStyleAttributeName, NSPasteboard, NSPasteboardTypePDF, \
                    NSPasteboardTypeTIFF, NSPasteboardURLReadingContentsConformToTypesKey, \
                    NSPasteboardURLReadingFileURLsOnlyKey, NSPDFImageRep, NSPNGFileType, \

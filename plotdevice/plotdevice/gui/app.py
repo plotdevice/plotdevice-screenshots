@@ -17,6 +17,16 @@ You can also install anything you find on https://pypi.org here using the comman
   plotdevice --install <package-name>
 """
 
+def _unhidden(item, path=''):
+    # titles of items whose icons aren't (yet) hidden
+    out = []
+    if item.respondsToSelector_("preferredImageVisibility") and item.preferredImageVisibility() != 2 and not item.isSeparatorItem():
+        out.append(path + str(item.title()))
+    if item.hasSubmenu():
+        for sub in item.submenu().itemArray():
+            out += _unhidden(sub, path + str(item.title()) + ' > ')
+    return out
+
 def hide_icons(item):
     # macOS 27 draws icons beside some standard menu items (Settings, Share, the Window menu's tiling
     # commands and window list, the help book); 2 is NSMenuItemImageVisibilityHidden
@@ -51,13 +61,32 @@ class PlotDeviceAppDelegate(NSObject):
         while root.supermenu():
             root = root.supermenu()
         if root == NSApp().mainMenu():
+            if str(note.object().title()) == 'Window' or 'Window' in str(root.title()):
+                print('[icons] added to %s: %r vis=%s' % (note.object().title(), str(item.title()), item.preferredImageVisibility() if item.respondsToSelector_("preferredImageVisibility") else None), flush=True)
             hide_icons(item)
+            self.performSelector_withObject_afterDelay_inModes_("rehideIcons:", item, 0, ["kCFRunLoopCommonModes"])
 
         # context menus get an autofill item (with no identifier) merged in as they open; hide it on the way in
         inserts = [NSSelectorFromString(s) for s in ("_handleInsertFromContactsCommand:",
                    "_handleInsertFromPasswordsCommand:", "_handleInsertFromCreditCardsCommand:")]
         if item.hasSubmenu() and any(sub.action() in inserts for sub in item.submenu().itemArray()):
             item.setHidden_(True)
+
+    def rehideIcons_(self, item):
+        missed = _unhidden(item)
+        if missed:
+            print('[icons] deferred pass re-hid', missed, flush=True)
+            hide_icons(item)
+
+    def menuDidBeginTracking_(self, note):
+        root = note.object()
+        while root.supermenu():
+            root = root.supermenu()
+        if root == NSApp().mainMenu():
+            missed = [t for it in note.object().itemArray() for t in _unhidden(it)]
+            print('[icons] began tracking %r, re-hid %s' % (str(note.object().title()), missed), flush=True)
+            for it in note.object().itemArray():
+                hide_icons(it)
 
     def applicationSupportsSecureRestorableState_(self, app):
         return True
@@ -78,6 +107,7 @@ class PlotDeviceAppDelegate(NSObject):
         # and drop the autofill item that appkit adds to context menus as they open
         nc = NSNotificationCenter.defaultCenter()
         nc.addObserver_selector_name_object_(self, "menuDidAddItem:", NSMenuDidAddItemNotification, None)
+        nc.addObserver_selector_name_object_(self, "menuDidBeginTracking:", NSMenuDidBeginTrackingNotification, None)
 
         # add a hidden item to the menus that can be triggered internally by the editor
         for menu in mm.itemArray()[2:5]:

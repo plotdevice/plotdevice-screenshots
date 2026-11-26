@@ -86,7 +86,8 @@
     "from": "pdf",
     "to": "art/environment-clipboard.pdf"
    }
-  ]
+  ],
+  "seed": 1
  },
  {
   "name": "environment-export",
@@ -103,7 +104,8 @@
     "last": 50
    },
    "where": "~/Desktop"
-  }
+  },
+  "seed": 1
  },
  {
   "name": "environment1",
@@ -124,7 +126,8 @@
     "from": "png-outline",
     "to": "art/environment-panes-window.png"
    }
-  ]
+  ],
+  "seed": 1
  },
  {
   "name": "environment3",

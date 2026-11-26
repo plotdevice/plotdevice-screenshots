@@ -12,6 +12,7 @@ Shot keys:
   split     width of the canvas pane (the outer divider's position), or null
   output    height of the editor above the output pane (the inner divider's position), or null
   run       whether to run the script (default true), and settle: seconds to wait after
+  seed      seed for the script's random() calls, so shots of the same script draw the same thing
   frames    stop an animation once it reaches this frame
   assets    {destination: path within manual/} files to put in place before running
   editor    {top: first visible line, cursor: [line, col], select: [[l1, c1], [l2, c2]]}
@@ -475,7 +476,12 @@ def shoot(shot, appearance, scr, found):
     info = layout(ctrl, win, scr, shot)
     info['editor_load'] = ctrl.editor_state
     if shot.get('run', True):
-        on_main(ctrl.runScript_, None)
+        def running():
+            if 'seed' in shot:
+                import random
+                random.seed(shot['seed']) # plotdevice's random() draws from the random module
+            ctrl.runScript_(None)
+        on_main(running)
         if shot.get('frames'):
             # halt the animation once it has drawn as many frames as the old screenshot did
             deadline = time.time() + 60

@@ -17,19 +17,9 @@ You can also install anything you find on https://pypi.org here using the comman
   plotdevice --install <package-name>
 """
 
-def _unhidden(item, path=''):
-    # titles of items whose icons aren't (yet) hidden
-    out = []
-    if item.respondsToSelector_("preferredImageVisibility") and item.preferredImageVisibility() != 2 and not item.isSeparatorItem():
-        out.append(path + str(item.title()))
-    if item.hasSubmenu():
-        for sub in item.submenu().itemArray():
-            out += _unhidden(sub, path + str(item.title()) + ' > ')
-    return out
-
 def hide_icons(item):
-    # macOS 27 draws icons beside some standard menu items (Settings, Share, the Window menu's tiling
-    # commands and window list, the help book); 2 is NSMenuItemImageVisibilityHidden
+    # macOS 27 draws icons beside some standard menu items (Settings, Share, the help book, and the Window
+    # menu's tiling commands and window list); 2 is NSMenuItemImageVisibilityHidden, which our SDK predates
     if item.respondsToSelector_("setPreferredImageVisibility:"):
         item.setPreferredImageVisibility_(2)
     if item.hasSubmenu():
@@ -56,15 +46,12 @@ class PlotDeviceAppDelegate(NSObject):
     def menuDidAddItem_(self, note):
         item = note.object().itemAtIndex_(note.userInfo()["NSMenuItemIndex"])
 
-        # hide the icons of items added to the menu bar after launch (e.g., the window list)
+        # hide the icons of items appkit adds to the menu bar (e.g., the window list)
         root = note.object()
         while root.supermenu():
             root = root.supermenu()
         if root == NSApp().mainMenu():
-            if str(note.object().title()) == 'Window' or 'Window' in str(root.title()):
-                print('[icons] added to %s: %r vis=%s' % (note.object().title(), str(item.title()), item.preferredImageVisibility() if item.respondsToSelector_("preferredImageVisibility") else None), flush=True)
             hide_icons(item)
-            self.performSelector_withObject_afterDelay_inModes_("rehideIcons:", item, 0, ["kCFRunLoopCommonModes"])
 
         # context menus get an autofill item (with no identifier) merged in as they open; hide it on the way in
         inserts = [NSSelectorFromString(s) for s in ("_handleInsertFromContactsCommand:",
@@ -72,21 +59,11 @@ class PlotDeviceAppDelegate(NSObject):
         if item.hasSubmenu() and any(sub.action() in inserts for sub in item.submenu().itemArray()):
             item.setHidden_(True)
 
-    def rehideIcons_(self, item):
-        missed = _unhidden(item)
-        if missed:
-            print('[icons] deferred pass re-hid', missed, flush=True)
-            hide_icons(item)
-
     def menuDidBeginTracking_(self, note):
-        root = note.object()
-        while root.supermenu():
-            root = root.supermenu()
-        if root == NSApp().mainMenu():
-            missed = [t for it in note.object().itemArray() for t in _unhidden(it)]
-            print('[icons] began tracking %r, re-hid %s' % (str(note.object().title()), missed), flush=True)
-            for it in note.object().itemArray():
-                hide_icons(it)
+        # appkit restores some of the window menu's icons after the fact, so hide them all again as the menu bar opens
+        if note.object() == NSApp().mainMenu():
+            for item in note.object().itemArray():
+                hide_icons(item)
 
     def applicationSupportsSecureRestorableState_(self, app):
         return True
@@ -100,11 +77,7 @@ class PlotDeviceAppDelegate(NSObject):
             if it.identifier() == "_NSMenuItemAutoFillIdentifier":
                 edmenu.removeItem_(it)
 
-        # hide the icons that macOS 27 still draws beside some items
-        for it in mm.itemArray():
-            hide_icons(it)
-
-        # and drop the autofill item that appkit adds to context menus as they open
+        # drop the autofill item that appkit adds to context menus as they open, and hide menu bar icons
         nc = NSNotificationCenter.defaultCenter()
         nc.addObserver_selector_name_object_(self, "menuDidAddItem:", NSMenuDidAddItemNotification, None)
         nc.addObserver_selector_name_object_(self, "menuDidBeginTracking:", NSMenuDidBeginTrackingNotification, None)

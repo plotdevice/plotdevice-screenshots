@@ -53,6 +53,8 @@ class PlotDeviceAppDelegate(NSObject):
         for it in edmenu.itemArray():
             if it.identifier() == "_NSMenuItemAutoFillIdentifier":
                 edmenu.removeItem_(it)
+            elif it.respondsToSelector_("setPreferredImageVisibility:"):
+                it.setPreferredImageVisibility_(2) # hidden
 
         # and drop the autofill item that appkit adds to context menus as they open
         nc = NSNotificationCenter.defaultCenter()

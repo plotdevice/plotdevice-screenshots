@@ -503,5 +503,19 @@
   "output": 280,
   "probe_context": true,
   "install": []
+ },
+ {
+  "name": "experiment-edit-icons",
+  "script": "environment1/Balls.pv",
+  "content": [
+   550,
+   390
+  ],
+  "split": 258,
+  "output": 287,
+  "probe_menu": {
+   "bar": "Edit"
+  },
+  "install": []
  }
 ]

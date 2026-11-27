@@ -17,21 +17,6 @@ You can also install anything you find on https://pypi.org here using the comman
   plotdevice --install <package-name>
 """
 
-def tiling_menu(menu):
-    # the Window menu's Move & Resize and Full Screen Tile submenus, whose icons diagram each layout (every
-    # command in them is a _zoom… or _tile… action, unlike the Window menu itself, which only has a few)
-    actions = [a.decode() if isinstance(a, bytes) else str(a) for a in (it.action() for it in menu.itemArray()) if a]
-    return bool(actions) and all(a.startswith(('_zoom', '_tile')) for a in actions)
-
-def hide_icons(item):
-    # macOS 27 draws icons beside some standard menu items (Settings, Share, the help book, the Window
-    # menu's window list); 2 is NSMenuItemImageVisibilityHidden, which our SDK predates
-    if item.respondsToSelector_("setPreferredImageVisibility:"):
-        item.setPreferredImageVisibility_(2)
-    if item.hasSubmenu() and not tiling_menu(item.submenu()):
-        for sub in item.submenu().itemArray():
-            hide_icons(sub)
-
 class PlotDeviceAppDelegate(NSObject):
     examplesMenu = IBOutlet()
     updatesMenu = IBOutlet()
@@ -49,44 +34,59 @@ class PlotDeviceAppDelegate(NSObject):
         except OSError: pass
         except IOError: pass
 
+    @objc.python_method
+    def hideIcons(self, menu):
+        # opt out of Tahoe's menu icon travesty except for the window-tiling submenus where they're actually useful
+        actions = [item.action() for item in menu.itemArray() if item.action()]
+        if actions and all(a.startswith(('_zoom', '_tile')) for a in actions):
+            return
+        for item in menu.itemArray():
+            if item.respondsToSelector_("setPreferredImageVisibility:"):
+                item.setPreferredImageVisibility_(2) # NSMenuItemImageVisibilityHidden, which our SDK predates
+            if item.hasSubmenu():
+                self.hideIcons(item.submenu())
+
     def menuDidAddItem_(self, note):
         item = note.object().itemAtIndex_(note.userInfo()["NSMenuItemIndex"])
 
-        # hide the icons of items appkit adds to the menu bar (e.g., the window list)
+        # catch AppKit's autmatically populated menus (e.g., Window) and remove their icons
         root = note.object()
         while root.supermenu():
             root = root.supermenu()
-        if root == NSApp().mainMenu() and not tiling_menu(note.object()):
-            hide_icons(item)
+        if root == NSApp().mainMenu():
+            self.hideIcons(note.object())
 
-        # context menus get an autofill item (with no identifier) merged in as they open; hide it on the way in
+        # hide Autofill in context menus
         inserts = [NSSelectorFromString(s) for s in ("_handleInsertFromContactsCommand:",
                    "_handleInsertFromPasswordsCommand:", "_handleInsertFromCreditCardsCommand:")]
         if item.hasSubmenu() and any(sub.action() in inserts for sub in item.submenu().itemArray()):
             item.setHidden_(True)
+        if item.identifier() == "_NSMenuItemAutoFillIdentifier" or 'AutoFill' in str(item.title()):
+            print('[autofill] added to %r: %r id=%s submenu=%s hidden=%s' % (str(note.object().title()), str(item.title()), item.identifier(),
+                  [sub.action() for sub in item.submenu().itemArray()] if item.hasSubmenu() else None, item.isHidden()), flush=True)
 
     def menuDidBeginTracking_(self, note):
-        # appkit restores some of the window menu's icons after the fact, so hide them again as the menu bar opens
+        # re-hide icons each time the menu opens (since AppKit will auto-restore some of them)
         if note.object() == NSApp().mainMenu():
-            for item in note.object().itemArray():
-                hide_icons(item)
+            self.hideIcons(note.object())
 
     def applicationSupportsSecureRestorableState_(self, app):
         return True
 
-    def applicationDidFinishLaunching_(self, note):
-        mm=NSApp().mainMenu()
-
-        # disable the autofill item in the edit menu
-        edmenu = mm.itemAtIndex_(2).submenu()
-        for it in edmenu.itemArray():
-            if it.identifier() == "_NSMenuItemAutoFillIdentifier":
-                edmenu.removeItem_(it)
-
-        # drop the autofill item that appkit adds to context menus as they open, and hide menu bar icons
+    def applicationWillFinishLaunching_(self, note):
+        # drop the autofill items appkit adds to the edit menu and context menus, and hide menu bar icons
+        print('[autofill] observers registered', flush=True)
         nc = NSNotificationCenter.defaultCenter()
         nc.addObserver_selector_name_object_(self, "menuDidAddItem:", NSMenuDidAddItemNotification, None)
         nc.addObserver_selector_name_object_(self, "menuDidBeginTracking:", NSMenuDidBeginTrackingNotification, None)
+
+    def applicationDidFinishLaunching_(self, note):
+        mm=NSApp().mainMenu()
+
+        # probe: is the edit menu's autofill item gone by now?
+        for it in mm.itemAtIndex_(2).submenu().itemArray():
+            if it.identifier() == "_NSMenuItemAutoFillIdentifier" or 'AutoFill' in str(it.title()):
+                print('[autofill] at didFinishLaunching: %r id=%s hidden=%s' % (str(it.title()), it.identifier(), it.isHidden()), flush=True)
 
         # add a hidden item to the menus that can be triggered internally by the editor
         for menu in mm.itemArray()[2:5]:

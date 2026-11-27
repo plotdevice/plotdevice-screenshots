@@ -503,5 +503,196 @@
   "output": 280,
   "probe_context": true,
   "install": []
+ },
+ {
+  "name": "experiment-edit-icons",
+  "script": "environment1/Balls.pv",
+  "content": [
+   550,
+   390
+  ],
+  "split": 258,
+  "output": 287,
+  "probe_menu": {
+   "bar": "Edit"
+  },
+  "install": []
+ },
+ {
+  "name": "experiment-menu-probe",
+  "script": "environment1/Balls.pv",
+  "content": [
+   550,
+   390
+  ],
+  "split": 258,
+  "output": 287,
+  "probe_menu": {
+   "bar": "Edit",
+   "bars": [
+    "PlotDevice",
+    "File",
+    "Edit",
+    "View",
+    "Python",
+    "Examples",
+    "Window",
+    "Help"
+   ]
+  },
+  "install": []
+ },
+ {
+  "name": "experiment-menu-plotdevice",
+  "menu": {
+   "bar": "PlotDevice"
+  },
+  "install": [],
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "seed": 6
+ },
+ {
+  "name": "experiment-menu-file",
+  "menu": {
+   "bar": "File"
+  },
+  "install": [],
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "seed": 6
+ },
+ {
+  "name": "experiment-menu-view",
+  "menu": {
+   "bar": "View"
+  },
+  "install": [],
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "seed": 6
+ },
+ {
+  "name": "experiment-menu-python",
+  "menu": {
+   "bar": "Python"
+  },
+  "install": [],
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "seed": 6
+ },
+ {
+  "name": "experiment-menu-examples",
+  "menu": {
+   "bar": "Examples"
+  },
+  "install": [],
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "seed": 6
+ },
+ {
+  "name": "experiment-menu-window",
+  "menu": {
+   "bar": "Window"
+  },
+  "install": [],
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "seed": 6
+ },
+ {
+  "name": "experiment-menu-help",
+  "menu": {
+   "bar": "Help"
+  },
+  "install": [],
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "seed": 6
+ },
+ {
+  "name": "experiment-menu-find",
+  "menu": {
+   "bar": "Edit",
+   "item": "Find"
+  },
+  "install": [],
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "seed": 6
+ },
+ {
+  "name": "experiment-menu-resize",
+  "menu": {
+   "bar": "Window",
+   "item": "Move & Resize"
+  },
+  "install": [],
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "seed": 6
+ },
+ {
+  "name": "experiment-menu-tile",
+  "menu": {
+   "bar": "Window",
+   "item": "Full Screen Tile"
+  },
+  "install": [],
+  "script": "environment-copy-as-pdf/Balls.pv",
+  "content": [
+   600,
+   308
+  ],
+  "split": 300,
+  "output": 230,
+  "seed": 6
  }
 ]
